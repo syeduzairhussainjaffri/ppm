@@ -151,10 +151,28 @@
             </a>
 
             <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Exports &amp; Reports
+                Exports &amp; Reports Hub
             </div>
 
-            <a href="{{ route('ppm.export') }}" 
+            <a href="{{ route('reports.index') }}" 
+               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.index') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <i class="fa-solid fa-chart-pie w-5 text-sm {{ request()->routeIs('reports.index') ? 'text-white' : 'text-teal-400' }}"></i>
+                <span>Reports &amp; Analytics Hub</span>
+            </a>
+
+            <a href="{{ route('reports.customer') }}" 
+               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.customer') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <i class="fa-solid fa-hospital-user w-5 text-sm {{ request()->routeIs('reports.customer') ? 'text-white' : 'text-teal-400' }}"></i>
+                <span>Customer-Wise Report</span>
+            </a>
+
+            <a href="{{ route('reports.product') }}" 
+               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.product') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('reports.product') ? 'text-white' : 'text-blue-400' }}"></i>
+                <span>Product-Wise Report</span>
+            </a>
+
+            <a href="{{ route('reports.export') }}" 
                class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
                 <i class="fa-solid fa-file-csv w-5 text-sm text-emerald-400"></i>
                 <span>Export CSV Sheet</span>
@@ -166,9 +184,9 @@
             <div class="bg-slate-800/90 rounded-lg px-2.5 py-1.5 border border-slate-700/60 flex items-center justify-between text-xs">
                 <div class="flex items-center space-x-1.5 font-mono text-[11px] text-slate-300">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>127.0.0.1:8000</span>
+                    <span>{{ request()->getHttpHost() }}</span>
                 </div>
-                <span class="text-[10px] font-medium text-slate-400">SQLite</span>
+                <span class="text-[10px] font-medium text-slate-400">BioMed CRM</span>
             </div>
         </div>
     </aside>

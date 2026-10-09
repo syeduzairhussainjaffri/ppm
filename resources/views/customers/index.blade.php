@@ -11,6 +11,9 @@
             <p class="text-sm text-slate-500 mt-1">Manage health facilities, hospital departments, and authorized contact persons.</p>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{{ route('reports.customer') }}" class="inline-flex items-center px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg shadow-sm transition">
+                <i class="fa-solid fa-chart-pie mr-2 text-teal-400"></i> Customer Reports
+            </a>
             <a href="{{ route('customers.create') }}" class="inline-flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">
                 <i class="fa-solid fa-plus mr-2"></i> Add Customer
             </a>

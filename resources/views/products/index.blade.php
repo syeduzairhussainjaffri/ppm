@@ -11,6 +11,9 @@
             <p class="text-sm text-slate-500 mt-1">Manage biomedical equipment models, default maintenance cycles, and specifications.</p>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{{ route('reports.product') }}" class="inline-flex items-center px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg shadow-sm transition">
+                <i class="fa-solid fa-boxes-stacked mr-2 text-blue-400"></i> Product Reports
+            </a>
             <a href="{{ route('products.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">
                 <i class="fa-solid fa-plus mr-2"></i> Add Product / Equipment
             </a>
