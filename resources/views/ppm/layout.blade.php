@@ -10,12 +10,12 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* Prevent sidebar from having visible scrollbars */
-        #sidebar {
+        /* Prevent sidebar from having visible scrollbars while allowing smooth vertical scrolling */
+        #sidebar, #sidebar nav {
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
-        #sidebar::-webkit-scrollbar {
+        #sidebar::-webkit-scrollbar, #sidebar nav::-webkit-scrollbar {
             display: none;
         }
 
@@ -62,16 +62,19 @@
                     </span>
                 @endif
             </button>
-            <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')" class="p-1.5 text-slate-300 hover:text-white focus:outline-none">
+            <button onclick="toggleMobileSidebar()" class="p-1.5 text-slate-300 hover:text-white focus:outline-none">
                 <i class="fa-solid fa-bars text-lg"></i>
             </button>
         </div>
     </header>
 
+    <!-- Mobile Backdrop Overlay -->
+    <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 hidden md:hidden"></div>
+
     <!-- Sidebar Navigation: Sticky Top-0, Screen Height, Never Scrolls with Content -->
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-60 bg-slate-900 text-white flex flex-col transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:shrink-0 no-print shadow-xl overflow-hidden">
         <!-- Logo / Branding -->
-        <div class="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <div class="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between shrink-0">
             <div class="flex items-center space-x-2.5">
                 <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-teal-600 to-teal-400 flex items-center justify-center text-white shadow text-sm">
                     <i class="fa-solid fa-heart-pulse"></i>
@@ -81,13 +84,13 @@
                     <p class="text-[10px] text-teal-400 font-semibold tracking-wider uppercase">PPM Field Portal</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('sidebar').classList.add('-translate-x-full')" class="md:hidden text-slate-400 hover:text-white">
+            <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
 
-        <!-- Navigation Links -->
-        <nav class="flex-grow px-2.5 py-2 space-y-1 overflow-hidden">
+        <!-- Navigation Links: Smooth vertical scrolling for smaller screens -->
+        <nav class="flex-grow px-2.5 py-2 space-y-1 overflow-y-auto min-h-0">
             <div class="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 PPM &amp; Installation
             </div>
@@ -149,6 +152,17 @@
                 <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('products.*') ? 'text-white' : 'text-slate-400' }}"></i>
                 <span>Products &amp; Equipment</span>
             </a>
+
+            @can('manage-users')
+                <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    System Administration
+                </div>
+                <a href="{{ route('users.index') }}" 
+                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('users.*') ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-user-shield w-5 text-sm {{ request()->routeIs('users.*') ? 'text-white' : 'text-indigo-400' }}"></i>
+                    <span>User Accounts &amp; Roles</span>
+                </a>
+            @endcan
 
             <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Exports &amp; Reports Hub
@@ -334,12 +348,36 @@
                     </div>
                 </div>
 
-                <a href="{{ route('ppm.create') }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition">
-                    <i class="fa-solid fa-plus mr-1.5"></i> New Form
-                </a>
-                <a href="{{ route('ppm.export') }}" class="inline-flex items-center px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition">
-                    <i class="fa-solid fa-file-csv mr-1 text-emerald-600"></i> CSV
-                </a>
+                @can('create-records')
+                    <a href="{{ route('ppm.create') }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition">
+                        <i class="fa-solid fa-plus mr-1.5"></i> New Form
+                    </a>
+                @endcan
+
+                <!-- Authenticated User Profile & Logout -->
+                @auth
+                    <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
+                        <div class="text-right text-xs hidden sm:block">
+                            <p class="font-bold text-slate-900 leading-tight">{{ auth()->user()->name }}</p>
+                            @if(auth()->user()->isAdmin())
+                                <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Super Admin</span>
+                            @elseif(auth()->user()->isManager())
+                                <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Manager</span>
+                            @elseif(auth()->user()->isTechnician())
+                                <span class="bg-teal-100 text-teal-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Technician</span>
+                            @else
+                                <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Viewer</span>
+                            @endif
+                        </div>
+                        
+                        <form action="{{ route('logout') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition" title="Log Out">
+                                <i class="fa-solid fa-right-from-bracket text-base"></i>
+                            </button>
+                        </form>
+                    </div>
+                @endauth
             </div>
         </header>
 
@@ -378,6 +416,22 @@
     <div id="ppm-toast-container" class="fixed top-5 right-5 z-50 space-y-2 pointer-events-none no-print"></div>
 
     <script>
+        // Mobile Sidebar Toggle with Backdrop
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) {
+                sidebar.classList.toggle('-translate-x-full');
+                if (overlay) {
+                    if (sidebar.classList.contains('-translate-x-full')) {
+                        overlay.classList.add('hidden');
+                    } else {
+                        overlay.classList.remove('hidden');
+                    }
+                }
+            }
+        }
+
         // Toggle notification flyout dropdown
         function toggleNotificationDropdown() {
             const panel = document.getElementById('ppmNotificationPanel');
