@@ -162,16 +162,16 @@
         <!-- Section 4: Execution & Dates -->
         <div>
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-2 mb-4 flex items-center">
-                <i class="fa-solid fa-calendar-check mr-2 text-slate-600"></i> 4. Installation Execution &amp; Maintenance Schedule
+                <i class="fa-solid fa-calendar-check mr-2 text-slate-600"></i> 4. Service Execution &amp; Maintenance Schedule
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Date of Installation</label>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Date of Installation / Service</label>
                     <input type="date" name="installation_date" id="installation_date" value="{{ old('installation_date', optional($record->installation_date)->format('Y-m-d')) }}"
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Installation Performed By (Engineer)</label>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Service / Performed By (Engineer)</label>
                     <input type="text" name="performed_by" value="{{ old('performed_by', $record->performed_by) }}"
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500">
                 </div>

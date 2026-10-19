@@ -176,16 +176,16 @@
         <!-- Section 4: Installation Execution & Maintenance Schedule -->
         <div class="bg-slate-50/70 p-3.5 sm:p-4 rounded-xl border border-slate-200">
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-2 mb-3 flex items-center">
-                <i class="fa-solid fa-calendar-check mr-1.5 text-slate-600"></i> 4. Installation Execution &amp; PPM Schedule
+                <i class="fa-solid fa-calendar-check mr-1.5 text-slate-600"></i> 4. Service Execution &amp; PPM Schedule
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">Date of Installation</label>
+                    <label class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">Date of Installation / Service</label>
                     <input type="date" name="installation_date" id="installation_date" onchange="calculateNextPpmDate()" value="{{ old('installation_date', date('Y-m-d')) }}"
                            class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-teal-500">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">Installation Performed By (Engineer)</label>
+                    <label class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">Service / Performed By (Engineer)</label>
                     <input type="text" name="performed_by" value="{{ old('performed_by') }}" placeholder="e.g. Engr. Bilal Ahmed"
                            class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-teal-500">
                 </div>

@@ -31,6 +31,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'branch_id',
         'is_active',
     ];
 
@@ -111,6 +112,39 @@ class User extends Authenticatable
     }
 
     /**
+     * Relationship to Branch Model.
+     */
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Helper to check if user has unrestricted multi-branch access.
+     */
+    public function hasAllBranchesAccess(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->hasPermission('access_all_branches') || empty($this->branch_id);
+    }
+
+    /**
+     * Get human-readable branch name.
+     */
+    public function getBranchNameAttribute(): string
+    {
+        return $this->branch?->name ?? 'All Branches (HQ)';
+    }
+
+    /**
+     * In-memory cache for role permissions to prevent N+1 queries.
+     */
+    protected ?array $cachedPermissions = null;
+
+    /**
      * Dynamic Permission Check.
      */
     public function hasPermission(string $permissionSlug): bool
@@ -120,11 +154,11 @@ class User extends Authenticatable
             return true;
         }
 
-        $role = Role::where('slug', $this->role)->with('permissions')->first();
-        if (!$role) {
-            return false;
+        if ($this->cachedPermissions === null) {
+            $role = Role::where('slug', $this->role)->with('permissions')->first();
+            $this->cachedPermissions = $role ? $role->permissions->pluck('slug')->toArray() : [];
         }
 
-        return $role->permissions->contains('slug', $permissionSlug);
+        return in_array($permissionSlug, $this->cachedPermissions, true);
     }
 }

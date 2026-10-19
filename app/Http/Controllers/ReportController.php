@@ -133,36 +133,114 @@ class ReportController extends Controller
     public function customerReport(Request $request)
     {
         $customers = Customer::orderBy('name')->get();
+        $departments = PpmRecord::whereNotNull('department')
+            ->where('department', '!=', '')
+            ->distinct()
+            ->pluck('department')
+            ->merge(Customer::whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department'))
+            ->unique()
+            ->sort()
+            ->values();
+
+        $serviceTypes = PpmRecord::whereNotNull('service_type')
+            ->where('service_type', '!=', '')
+            ->distinct()
+            ->pluck('service_type')
+            ->sort()
+            ->values();
+
         $selectedCustomerId = $request->input('customer_id');
         $customerSearch = $request->input('search');
 
-        $query = Customer::with(['ppmRecords' => function ($q) {
-            $q->latest();
-        }]);
+        $query = PpmRecord::with(['customer', 'product'])->latest();
+        $this->applyReportFilters($query, $request);
+        $records = $query->get();
 
-        if ($selectedCustomerId) {
-            $query->where('id', $selectedCustomerId);
-        } elseif ($customerSearch) {
-            $query->where('name', 'like', "%{$customerSearch}%")
-                  ->orWhere('department', 'like', "%{$customerSearch}%");
-        }
+        $today = now()->toDateString();
 
-        $customerReports = $query->get()->map(function ($cust) {
-            $records = $cust->ppmRecords;
-            $today = now()->toDateString();
+        // Calculate Overall Totals across all filtered records
+        $totals = [
+            'total_customers' => 0,
+            'total_equipment' => $records->count(),
+            'due_today' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() === $today)->count(),
+            'overdue' => $records->filter(fn($r) => $r->next_ppm_date && $r->next_ppm_date->toDateString() < $today && strtolower($r->status) !== 'completed')->count(),
+            'upcoming' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() > $today)->count(),
+            'completed' => $records->filter(fn($r) => strtolower($r->status) === 'completed')->count(),
+            'pending' => $records->filter(fn($r) => strtolower($r->status) !== 'completed')->count(),
+        ];
 
-            return [
-                'customer' => $cust,
-                'records' => $records,
-                'total_equipment' => $records->count(),
-                'due_today' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() === $today)->count(),
-                'overdue' => $records->filter(fn($r) => $r->next_ppm_date && $r->next_ppm_date->toDateString() < $today && strtolower($r->status) !== 'completed')->count(),
-                'upcoming' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() > $today)->count(),
-                'completed' => $records->filter(fn($r) => strtolower($r->status) === 'completed')->count(),
-            ];
+        // Group records by Customer
+        $grouped = $records->groupBy(function ($r) {
+            return $r->customer_id ? 'id_' . $r->customer_id : 'name_' . trim(strtolower($r->customer_name ?: 'General Customer'));
         });
 
-        return view('reports.customer', compact('customers', 'customerReports', 'selectedCustomerId', 'customerSearch'));
+        $customerReports = $grouped->map(function ($group) use ($today, $customers) {
+            $first = $group->first();
+            $customer = $first->customer;
+
+            if (!$customer && $first->customer_name) {
+                $customer = $customers->first(function ($c) use ($first) {
+                    return strcasecmp($c->name, $first->customer_name) === 0;
+                });
+            }
+
+            $customerName = $customer ? $customer->name : ($first->customer_name ?: 'General Customer');
+            $department = $customer ? ($customer->department ?: $first->department) : $first->department;
+            $contactPerson = $customer ? ($customer->contact_person ?: $first->contact_person) : $first->contact_person;
+            $contactNo = $customer ? ($customer->contact_no ?: $first->contact_no) : $first->contact_no;
+            $address = $customer ? $customer->address : null;
+
+            return [
+                'customer' => $customer,
+                'customer_name' => $customerName,
+                'department' => $department,
+                'contact_person' => $contactPerson,
+                'contact_no' => $contactNo,
+                'address' => $address,
+                'records' => $group,
+                'total_equipment' => $group->count(),
+                'due_today' => $group->filter(fn($r) => optional($r->next_ppm_date)->toDateString() === $today)->count(),
+                'overdue' => $group->filter(fn($r) => $r->next_ppm_date && $r->next_ppm_date->toDateString() < $today && strtolower($r->status) !== 'completed')->count(),
+                'upcoming' => $group->filter(fn($r) => optional($r->next_ppm_date)->toDateString() > $today)->count(),
+                'completed' => $group->filter(fn($r) => strtolower($r->status) === 'completed')->count(),
+                'pending' => $group->filter(fn($r) => strtolower($r->status) !== 'completed')->count(),
+            ];
+        })->sortByDesc('total_equipment')->values();
+
+        // If a customer was specifically filtered by ID and had 0 matching records, show them with empty record set
+        if ($selectedCustomerId && $customerReports->isEmpty()) {
+            $cust = Customer::find($selectedCustomerId);
+            if ($cust) {
+                $customerReports = collect([[
+                    'customer' => $cust,
+                    'customer_name' => $cust->name,
+                    'department' => $cust->department,
+                    'contact_person' => $cust->contact_person,
+                    'contact_no' => $cust->contact_no,
+                    'address' => $cust->address,
+                    'records' => collect(),
+                    'total_equipment' => 0,
+                    'due_today' => 0,
+                    'overdue' => 0,
+                    'upcoming' => 0,
+                    'completed' => 0,
+                    'pending' => 0,
+                ]]);
+            }
+        }
+
+        $totals['total_customers'] = $customerReports->count();
+
+        return view('reports.customer', compact(
+            'customers',
+            'departments',
+            'serviceTypes',
+            'customerReports',
+            'totals',
+            'selectedCustomerId',
+            'customerSearch',
+            'request'
+        ));
     }
 
     /**
@@ -171,37 +249,118 @@ class ReportController extends Controller
     public function productReport(Request $request)
     {
         $products = Product::orderBy('name')->get();
+        $departments = PpmRecord::whereNotNull('department')
+            ->where('department', '!=', '')
+            ->distinct()
+            ->pluck('department')
+            ->merge(Customer::whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department'))
+            ->unique()
+            ->sort()
+            ->values();
+
+        $serviceTypes = PpmRecord::whereNotNull('service_type')
+            ->where('service_type', '!=', '')
+            ->distinct()
+            ->pluck('service_type')
+            ->sort()
+            ->values();
+
         $selectedProductId = $request->input('product_id');
         $productSearch = $request->input('search');
 
-        $query = Product::with(['ppmRecords' => function ($q) {
-            $q->latest();
-        }]);
+        $query = PpmRecord::with(['customer', 'product'])->latest();
+        $this->applyReportFilters($query, $request);
+        $records = $query->get();
 
-        if ($selectedProductId) {
-            $query->where('id', $selectedProductId);
-        } elseif ($productSearch) {
-            $query->where('name', 'like', "%{$productSearch}%")
-                  ->orWhere('equipment_name', 'like', "%{$productSearch}%")
-                  ->orWhere('model_make', 'like', "%{$productSearch}%");
-        }
+        $today = now()->toDateString();
 
-        $productReports = $query->get()->map(function ($prod) {
-            $records = $prod->ppmRecords;
-            $today = now()->toDateString();
+        // Calculate Overall Totals across all filtered records
+        $totals = [
+            'total_products' => 0,
+            'total_installed' => $records->count(),
+            'unique_hospitals' => $records->pluck('customer_name')->unique()->filter()->count(),
+            'due_today' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() === $today)->count(),
+            'overdue' => $records->filter(fn($r) => $r->next_ppm_date && $r->next_ppm_date->toDateString() < $today && strtolower($r->status) !== 'completed')->count(),
+            'upcoming' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() > $today)->count(),
+            'completed' => $records->filter(fn($r) => strtolower($r->status) === 'completed')->count(),
+            'pending' => $records->filter(fn($r) => strtolower($r->status) !== 'completed')->count(),
+        ];
 
-            return [
-                'product' => $prod,
-                'records' => $records,
-                'total_installed' => $records->count(),
-                'unique_hospitals' => $records->pluck('customer_name')->unique()->filter()->count(),
-                'due_today' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() === $today)->count(),
-                'overdue' => $records->filter(fn($r) => $r->next_ppm_date && $r->next_ppm_date->toDateString() < $today && strtolower($r->status) !== 'completed')->count(),
-                'upcoming' => $records->filter(fn($r) => optional($r->next_ppm_date)->toDateString() > $today)->count(),
-            ];
+        // Group records by Product
+        $grouped = $records->groupBy(function ($r) {
+            return $r->product_id ? 'id_' . $r->product_id : 'name_' . trim(strtolower($r->equipment_name ?: ($r->product_description ?: 'General Equipment')));
         });
 
-        return view('reports.product', compact('products', 'productReports', 'selectedProductId', 'productSearch'));
+        $productReports = $grouped->map(function ($group) use ($today, $products) {
+            $first = $group->first();
+            $product = $first->product;
+
+            if (!$product && ($first->equipment_name || $first->product_description)) {
+                $product = $products->first(function ($p) use ($first) {
+                    return strcasecmp($p->name, $first->product_description) === 0
+                        || strcasecmp($p->equipment_name, $first->equipment_name) === 0;
+                });
+            }
+
+            $productName = $product ? $product->name : ($first->equipment_name ?: ($first->product_description ?: 'General Equipment'));
+            $equipmentName = $product ? ($product->equipment_name ?: $product->name) : ($first->equipment_name ?: $first->product_description);
+            $modelMake = $product ? ($product->model_make ?: $first->model_make) : $first->model_make;
+            $defaultPpmDays = $product ? $product->default_ppm_days : null;
+            $category = $product ? $product->category : null;
+
+            return [
+                'product' => $product,
+                'product_name' => $productName,
+                'equipment_name' => $equipmentName,
+                'model_make' => $modelMake,
+                'default_ppm_days' => $defaultPpmDays,
+                'category' => $category,
+                'records' => $group,
+                'total_installed' => $group->count(),
+                'unique_hospitals' => $group->pluck('customer_name')->unique()->filter()->count(),
+                'due_today' => $group->filter(fn($r) => optional($r->next_ppm_date)->toDateString() === $today)->count(),
+                'overdue' => $group->filter(fn($r) => $r->next_ppm_date && $r->next_ppm_date->toDateString() < $today && strtolower($r->status) !== 'completed')->count(),
+                'upcoming' => $group->filter(fn($r) => optional($r->next_ppm_date)->toDateString() > $today)->count(),
+                'completed' => $group->filter(fn($r) => strtolower($r->status) === 'completed')->count(),
+                'pending' => $group->filter(fn($r) => strtolower($r->status) !== 'completed')->count(),
+            ];
+        })->sortByDesc('total_installed')->values();
+
+        // If a product was specifically filtered by ID and had 0 matching records, show it
+        if ($selectedProductId && $productReports->isEmpty()) {
+            $prod = Product::find($selectedProductId);
+            if ($prod) {
+                $productReports = collect([[
+                    'product' => $prod,
+                    'product_name' => $prod->name,
+                    'equipment_name' => $prod->equipment_name ?: $prod->name,
+                    'model_make' => $prod->model_make,
+                    'default_ppm_days' => $prod->default_ppm_days,
+                    'category' => $prod->category,
+                    'records' => collect(),
+                    'total_installed' => 0,
+                    'unique_hospitals' => 0,
+                    'due_today' => 0,
+                    'overdue' => 0,
+                    'upcoming' => 0,
+                    'completed' => 0,
+                    'pending' => 0,
+                ]]);
+            }
+        }
+
+        $totals['total_products'] = $productReports->count();
+
+        return view('reports.product', compact(
+            'products',
+            'departments',
+            'serviceTypes',
+            'productReports',
+            'totals',
+            'selectedProductId',
+            'productSearch',
+            'request'
+        ));
     }
 
     /**
@@ -295,15 +454,18 @@ class ReportController extends Controller
                 $q->where('customer_name', 'like', "%{$search}%")
                   ->orWhere('equipment_name', 'like', "%{$search}%")
                   ->orWhere('product_description', 'like', "%{$search}%")
+                  ->orWhere('model_make', 'like', "%{$search}%")
                   ->orWhere('purchase_order_no', 'like', "%{$search}%")
                   ->orWhere('serial_no', 'like', "%{$search}%")
+                  ->orWhere('department', 'like', "%{$search}%")
+                  ->orWhere('contact_person', 'like', "%{$search}%")
                   ->orWhere('performed_by', 'like', "%{$search}%");
             });
         }
 
         if ($customerId = $request->input('customer_id')) {
-            $query->where(function ($q) use ($customerId) {
-                $customer = Customer::find($customerId);
+            $customer = Customer::find($customerId);
+            $query->where(function ($q) use ($customerId, $customer) {
                 $q->where('customer_id', $customerId);
                 if ($customer) {
                     $q->orWhere('customer_name', $customer->name);
@@ -312,8 +474,8 @@ class ReportController extends Controller
         }
 
         if ($productId = $request->input('product_id')) {
-            $query->where(function ($q) use ($productId) {
-                $product = Product::find($productId);
+            $product = Product::find($productId);
+            $query->where(function ($q) use ($productId, $product) {
                 $q->where('product_id', $productId);
                 if ($product) {
                     $q->orWhere('product_description', 'like', "%{$product->name}%")
