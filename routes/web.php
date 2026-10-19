@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\BranchController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Middleware\RoleMiddleware;
@@ -35,6 +36,9 @@ Route::middleware(['auth', RoleMiddleware::class])->group(function () {
         return redirect()->route('ppm.index');
     });
 
+    // Multi-Branch Active Switcher (for users with multi-branch access)
+    Route::post('/branches/switch', [BranchController::class, 'switchBranch'])->name('branches.switch');
+
     // Reports & Analytics Routes
     Route::prefix('reports')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('reports.index');
@@ -47,16 +51,22 @@ Route::middleware(['auth', RoleMiddleware::class])->group(function () {
     // PPM Field Operations
     Route::get('/ppm/notifications/check', [PpmRecordController::class, 'checkNotifications'])->name('ppm.notifications.check');
     Route::get('/ppm/export/csv', [PpmRecordController::class, 'exportCsv'])->name('ppm.export');
+    Route::post('/ppm/import/csv', [PpmRecordController::class, 'importCsv'])->name('ppm.import');
     Route::resource('ppm', PpmRecordController::class);
 
-    // Dynamic Master Data
+    // Dynamic Master Data: Customers
+    Route::get('/customers/export/csv', [CustomerController::class, 'exportCsv'])->name('customers.export');
+    Route::post('/customers/import/csv', [CustomerController::class, 'importCsv'])->name('customers.import');
     Route::post('/customers/quick', [CustomerController::class, 'store'])->name('customers.quick');
     Route::resource('customers', CustomerController::class);
 
+    // Dynamic Master Data: Products
+    Route::get('/products/export/csv', [ProductController::class, 'exportCsv'])->name('products.export');
+    Route::post('/products/import/csv', [ProductController::class, 'importCsv'])->name('products.import');
     Route::post('/products/quick', [ProductController::class, 'store'])->name('products.quick');
     Route::resource('products', ProductController::class);
 
-    // Unified User, Role & Permission Management Routes
+    // Unified User, Role, Permission & Branch Management Routes
     Route::middleware('can:manage-users')->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -72,6 +82,12 @@ Route::middleware(['auth', RoleMiddleware::class])->group(function () {
         // Dynamic Permission Routes
         Route::post('/permissions', [UserController::class, 'storePermission'])->name('permissions.store');
         Route::delete('/permissions/{permission}', [UserController::class, 'destroyPermission'])->name('permissions.destroy');
+
+        // Dynamic Branch Management Routes
+        Route::post('/branches', [BranchController::class, 'store'])->name('branches.store');
+        Route::put('/branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
+        Route::post('/branches/{branch}/toggle', [BranchController::class, 'toggleStatus'])->name('branches.toggle');
+        Route::delete('/branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
     });
 
 });

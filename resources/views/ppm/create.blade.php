@@ -32,6 +32,31 @@
     <form action="{{ route('ppm.store') }}" method="POST" id="ppmForm" class="bg-white border border-slate-200 rounded-xl shadow-xs p-4 sm:p-5 space-y-4">
         @csrf
 
+        @if(auth()->user()->hasAllBranchesAccess() || auth()->user()->isAdmin())
+        <!-- Branch Assignment (For Multi-Branch / Admin Users) -->
+        <div class="bg-indigo-50/50 p-3 sm:p-3.5 rounded-xl border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold shrink-0">
+                    <i class="fa-solid fa-code-branch"></i>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Location Scope</label>
+                    <p class="text-[11px] text-slate-500">Assign this service entry to a specific branch center</p>
+                </div>
+            </div>
+            <div class="sm:w-72">
+                <select name="branch_id" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500">
+                    <option value="">-- Main Head Office (Default) --</option>
+                    @foreach($branches as $b)
+                        <option value="{{ $b->id }}" {{ (old('branch_id', session('current_branch_id', auth()->user()->branch_id)) == $b->id) ? 'selected' : '' }}>
+                            {{ $b->name }} ({{ $b->code }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        @endif
+
         <!-- Section 1: Dynamic Customer & Hospital Selection -->
         <div class="bg-teal-50/40 p-3.5 sm:p-4 rounded-xl border border-teal-100">
             <div class="flex items-center justify-between border-b border-teal-200/60 pb-2 mb-3">

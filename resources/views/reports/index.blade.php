@@ -26,12 +26,16 @@
             </div>
             
             <div class="flex items-center space-x-2.5 shrink-0">
+                @can('print_reports')
                 <a href="{{ route('reports.print', request()->query()) }}" target="_blank" class="inline-flex items-center px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition shadow-sm">
                     <i class="fa-solid fa-print text-teal-400 mr-2"></i> Print Official Report
                 </a>
+                @endcan
+                @can('export_reports')
                 <a href="{{ route('reports.export', request()->query()) }}" class="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md hover:shadow-emerald-600/30">
                     <i class="fa-solid fa-file-excel mr-2 text-sm"></i> Download CSV Sheet
                 </a>
+                @endcan
             </div>
         </div>
     </div>

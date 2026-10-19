@@ -35,6 +35,31 @@
         @csrf
         @method('PUT')
 
+        @if(auth()->user()->hasAllBranchesAccess() || auth()->user()->isAdmin())
+        <!-- Branch Assignment (For Multi-Branch / Admin Users) -->
+        <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-base font-bold shrink-0">
+                    <i class="fa-solid fa-code-branch"></i>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Location Scope</label>
+                    <p class="text-xs text-slate-500">Change or assign the branch this service record belongs to</p>
+                </div>
+            </div>
+            <div class="sm:w-80">
+                <select name="branch_id" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500">
+                    <option value="">-- Main Head Office (Default) --</option>
+                    @foreach($branches as $b)
+                        <option value="{{ $b->id }}" {{ (old('branch_id', $record->branch_id) == $b->id) ? 'selected' : '' }}>
+                            {{ $b->name }} ({{ $b->code }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        @endif
+
         <!-- Section 1: Customer Details -->
         <div class="bg-teal-50/40 p-5 rounded-xl border border-teal-100/80">
             <h3 class="text-sm font-bold uppercase tracking-wider text-teal-900 border-b border-teal-200/60 pb-3 mb-4 flex items-center">

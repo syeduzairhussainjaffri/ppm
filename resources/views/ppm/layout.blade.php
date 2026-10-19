@@ -91,106 +91,120 @@
 
         <!-- Navigation Links: Smooth vertical scrolling for smaller screens -->
         <nav class="flex-grow px-2.5 py-2 space-y-1 overflow-y-auto min-h-0">
-            <div class="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                PPM &amp; Installation
-            </div>
-
-            <a href="{{ route('ppm.index') }}" 
-               class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('ppm.index') && !request('ppm_status') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <div class="flex items-center">
-                    <i class="fa-solid fa-table-list w-5 text-sm {{ request()->routeIs('ppm.index') && !request('ppm_status') ? 'text-white' : 'text-slate-400' }}"></i>
-                    <span>All PPM Records</span>
+            @can('view_ppm')
+                <div class="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    PPM &amp; Installation
                 </div>
-            </a>
 
-            <!-- PPM Due Today Link -->
-            <a href="{{ route('ppm.index', ['ppm_status' => 'due_today']) }}" 
-               class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request('ppm_status') === 'due_today' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-300 hover:bg-slate-800 hover:text-amber-200' }}">
-                <div class="flex items-center">
-                    <i class="fa-solid fa-bell w-5 text-sm {{ ($navDueToday->count() ?? 0) > 0 ? 'text-amber-400 animate-pulse' : 'text-slate-400' }}"></i>
-                    <span>PPM Due Today</span>
+                <a href="{{ route('ppm.index') }}" 
+                   class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('ppm.index') && !request('ppm_status') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-table-list w-5 text-sm {{ request()->routeIs('ppm.index') && !request('ppm_status') ? 'text-white' : 'text-slate-400' }}"></i>
+                        <span>All PPM Records</span>
+                    </div>
+                </a>
+
+                <!-- PPM Due Today Link -->
+                <a href="{{ route('ppm.index', ['ppm_status' => 'due_today']) }}" 
+                   class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request('ppm_status') === 'due_today' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-300 hover:bg-slate-800 hover:text-amber-200' }}">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-bell w-5 text-sm {{ ($navDueToday->count() ?? 0) > 0 ? 'text-amber-400 animate-pulse' : 'text-slate-400' }}"></i>
+                        <span>PPM Due Today</span>
+                    </div>
+                    @if(($navDueToday->count() ?? 0) > 0)
+                        <span class="bg-amber-500 text-slate-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
+                            {{ $navDueToday->count() }}
+                        </span>
+                    @endif
+                </a>
+
+                <!-- PPM Overdue Link -->
+                <a href="{{ route('ppm.index', ['ppm_status' => 'overdue']) }}" 
+                   class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request('ppm_status') === 'overdue' ? 'bg-rose-700 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-triangle-exclamation w-5 text-sm text-rose-400"></i>
+                        <span>Overdue PPM</span>
+                    </div>
+                    @if(($navOverdue->count() ?? 0) > 0)
+                        <span class="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {{ $navOverdue->count() }}
+                        </span>
+                    @endif
+                </a>
+
+                @can('create_ppm')
+                    <a href="{{ route('ppm.create') }}" 
+                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('ppm.create') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <i class="fa-solid fa-circle-plus w-5 text-sm {{ request()->routeIs('ppm.create') ? 'text-white' : 'text-teal-400' }}"></i>
+                        <span>New Service Form</span>
+                    </a>
+                @endcan
+            @endcan
+
+            @if(Gate::check('view_customers') || Gate::check('view_products'))
+                <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Master Data (Dynamic)
                 </div>
-                @if(($navDueToday->count() ?? 0) > 0)
-                    <span class="bg-amber-500 text-slate-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
-                        {{ $navDueToday->count() }}
-                    </span>
-                @endif
-            </a>
 
-            <!-- PPM Overdue Link -->
-            <a href="{{ route('ppm.index', ['ppm_status' => 'overdue']) }}" 
-               class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request('ppm_status') === 'overdue' ? 'bg-rose-700 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <div class="flex items-center">
-                    <i class="fa-solid fa-triangle-exclamation w-5 text-sm text-rose-400"></i>
-                    <span>Overdue PPM</span>
-                </div>
-                @if(($navOverdue->count() ?? 0) > 0)
-                    <span class="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                        {{ $navOverdue->count() }}
-                    </span>
-                @endif
-            </a>
+                @can('view_customers')
+                    <a href="{{ route('customers.index') }}" 
+                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('customers.*') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <i class="fa-solid fa-hospital-user w-5 text-sm {{ request()->routeIs('customers.*') ? 'text-white' : 'text-slate-400' }}"></i>
+                        <span>Customers / Hospitals</span>
+                    </a>
+                @endcan
 
-            <a href="{{ route('ppm.create') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('ppm.create') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <i class="fa-solid fa-circle-plus w-5 text-sm {{ request()->routeIs('ppm.create') ? 'text-white' : 'text-teal-400' }}"></i>
-                <span>New Service Form</span>
-            </a>
+                @can('view_products')
+                    <a href="{{ route('products.index') }}" 
+                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('products.*') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('products.*') ? 'text-white' : 'text-slate-400' }}"></i>
+                        <span>Products &amp; Equipment</span>
+                    </a>
+                @endcan
+            @endif
 
-            <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Master Data (Dynamic)
-            </div>
-
-            <a href="{{ route('customers.index') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('customers.*') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <i class="fa-solid fa-hospital-user w-5 text-sm {{ request()->routeIs('customers.*') ? 'text-white' : 'text-slate-400' }}"></i>
-                <span>Customers / Hospitals</span>
-            </a>
-
-            <a href="{{ route('products.index') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('products.*') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('products.*') ? 'text-white' : 'text-slate-400' }}"></i>
-                <span>Products &amp; Equipment</span>
-            </a>
-
-            @can('manage-users')
+            @if(Gate::check('view_users') || Gate::check('manage-users') || Gate::check('view_branches'))
                 <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     System Administration
                 </div>
                 <a href="{{ route('users.index') }}" 
                    class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('users.*') ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                     <i class="fa-solid fa-user-shield w-5 text-sm {{ request()->routeIs('users.*') ? 'text-white' : 'text-indigo-400' }}"></i>
-                    <span>User Accounts &amp; Roles</span>
+                    <span>Access Control &amp; Branches</span>
                 </a>
+            @endif
+
+            @can('view_reports')
+                <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Exports &amp; Reports Hub
+                </div>
+
+                <a href="{{ route('reports.index') }}" 
+                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.index') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-chart-pie w-5 text-sm {{ request()->routeIs('reports.index') ? 'text-white' : 'text-teal-400' }}"></i>
+                    <span>Reports &amp; Analytics Hub</span>
+                </a>
+
+                <a href="{{ route('reports.customer') }}" 
+                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.customer') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-hospital-user w-5 text-sm {{ request()->routeIs('reports.customer') ? 'text-white' : 'text-teal-400' }}"></i>
+                    <span>Customer-Wise Report</span>
+                </a>
+
+                <a href="{{ route('reports.product') }}" 
+                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.product') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('reports.product') ? 'text-white' : 'text-blue-400' }}"></i>
+                    <span>Product-Wise Report</span>
+                </a>
+
+                @can('export_reports')
+                    <a href="{{ route('reports.export') }}" 
+                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i class="fa-solid fa-file-csv w-5 text-sm text-emerald-400"></i>
+                        <span>Export CSV Sheet</span>
+                    </a>
+                @endcan
             @endcan
-
-            <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Exports &amp; Reports Hub
-            </div>
-
-            <a href="{{ route('reports.index') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.index') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <i class="fa-solid fa-chart-pie w-5 text-sm {{ request()->routeIs('reports.index') ? 'text-white' : 'text-teal-400' }}"></i>
-                <span>Reports &amp; Analytics Hub</span>
-            </a>
-
-            <a href="{{ route('reports.customer') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.customer') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <i class="fa-solid fa-hospital-user w-5 text-sm {{ request()->routeIs('reports.customer') ? 'text-white' : 'text-teal-400' }}"></i>
-                <span>Customer-Wise Report</span>
-            </a>
-
-            <a href="{{ route('reports.product') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.product') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('reports.product') ? 'text-white' : 'text-blue-400' }}"></i>
-                <span>Product-Wise Report</span>
-            </a>
-
-            <a href="{{ route('reports.export') }}" 
-               class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
-                <i class="fa-solid fa-file-csv w-5 text-sm text-emerald-400"></i>
-                <span>Export CSV Sheet</span>
-            </a>
         </nav>
 
         <!-- Compact Server Status Footer -->
@@ -348,7 +362,32 @@
                     </div>
                 </div>
 
-                @can('create-records')
+                <!-- Branch Access / Multi-Branch Switcher -->
+                @auth
+                    @if(auth()->user()->hasAllBranchesAccess() && isset($allActiveBranches) && $allActiveBranches->count() > 0)
+                        <form action="{{ route('branches.switch') }}" method="POST" class="inline-flex items-center">
+                            @csrf
+                            <div class="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl px-2.5 py-1 text-xs transition">
+                                <i class="fa-solid fa-code-branch text-indigo-600 text-xs"></i>
+                                <select name="branch_id" onchange="this.form.submit()" class="bg-transparent border-none text-[11px] font-bold text-slate-800 focus:ring-0 cursor-pointer py-0.5 pl-0 pr-6">
+                                    <option value="all" {{ !session('selected_branch_id') ? 'selected' : '' }}>🏢 All Branches (HQ)</option>
+                                    @foreach($allActiveBranches as $b)
+                                        <option value="{{ $b->id }}" {{ session('selected_branch_id') == $b->id ? 'selected' : '' }}>
+                                            📍 {{ $b->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </form>
+                    @else
+                        <div class="hidden sm:inline-flex items-center space-x-1.5 bg-slate-100 border border-slate-300 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                            <i class="fa-solid fa-location-dot text-teal-600"></i>
+                            <span>{{ auth()->user()->branch_name }}</span>
+                        </div>
+                    @endif
+                @endauth
+
+                @can('create_ppm')
                     <a href="{{ route('ppm.create') }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition">
                         <i class="fa-solid fa-plus mr-1.5"></i> New Form
                     </a>
@@ -359,15 +398,20 @@
                     <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
                         <div class="text-right text-xs hidden sm:block">
                             <p class="font-bold text-slate-900 leading-tight">{{ auth()->user()->name }}</p>
-                            @if(auth()->user()->isAdmin())
-                                <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Super Admin</span>
-                            @elseif(auth()->user()->isManager())
-                                <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Manager</span>
-                            @elseif(auth()->user()->isTechnician())
-                                <span class="bg-teal-100 text-teal-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Technician</span>
-                            @else
-                                <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase">Viewer</span>
-                            @endif
+                            <div class="flex items-center justify-end space-x-1 mt-0.5">
+                                @if(auth()->user()->isAdmin())
+                                    <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] px-1.5 py-0.2 rounded uppercase">Super Admin</span>
+                                @elseif(auth()->user()->isManager())
+                                    <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] px-1.5 py-0.2 rounded uppercase">Manager</span>
+                                @elseif(auth()->user()->isTechnician())
+                                    <span class="bg-teal-100 text-teal-800 font-extrabold text-[9px] px-1.5 py-0.2 rounded uppercase">Technician</span>
+                                @else
+                                    <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] px-1.5 py-0.2 rounded uppercase">Viewer</span>
+                                @endif
+                                <span class="text-[9px] font-medium text-slate-500 bg-slate-100 px-1 py-0.2 rounded">
+                                    {{ auth()->user()->branch?->code ?: 'HQ' }}
+                                </span>
+                            </div>
                         </div>
                         
                         <form action="{{ route('logout') }}" method="POST">

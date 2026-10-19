@@ -16,7 +16,9 @@ class ReportController extends Controller
      */
     public function index(Request $request)
     {
-        $customers = Customer::orderBy('name')->get();
+        $this->authorize('view_reports');
+
+        $customers = Customer::forUserBranch()->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
 
         // Get unique departments for filter dropdown
@@ -132,7 +134,9 @@ class ReportController extends Controller
      */
     public function customerReport(Request $request)
     {
-        $customers = Customer::orderBy('name')->get();
+        $this->authorize('view_reports');
+
+        $customers = Customer::forUserBranch()->orderBy('name')->get();
         $departments = PpmRecord::whereNotNull('department')
             ->where('department', '!=', '')
             ->distinct()
@@ -248,6 +252,8 @@ class ReportController extends Controller
      */
     public function productReport(Request $request)
     {
+        $this->authorize('view_reports');
+
         $products = Product::orderBy('name')->get();
         $departments = PpmRecord::whereNotNull('department')
             ->where('department', '!=', '')
@@ -368,6 +374,8 @@ class ReportController extends Controller
      */
     public function exportCsv(Request $request): StreamedResponse
     {
+        $this->authorize('export_reports');
+
         $query = PpmRecord::with(['customer', 'product'])->latest();
         $this->applyReportFilters($query, $request);
         $records = $query->get();
@@ -427,6 +435,8 @@ class ReportController extends Controller
      */
     public function printReport(Request $request)
     {
+        $this->authorize('print_reports');
+
         $query = PpmRecord::with(['customer', 'product'])->latest();
         $this->applyReportFilters($query, $request);
         $records = $query->get();
@@ -449,6 +459,8 @@ class ReportController extends Controller
      */
     private function applyReportFilters($query, Request $request)
     {
+        // Auto-scope by user branch access
+        $query->forUserBranch();
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('customer_name', 'like', "%{$search}%")

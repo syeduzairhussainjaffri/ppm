@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Gate;
 use App\Models\PpmRecord;
 use App\Models\User;
 use App\Models\Permission;
+use App\Models\Branch;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,12 +26,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Core Static Gates
+        // Super Admin Bypass for all abilities
+        Gate::before(function (User $user, string $ability) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+        });
+
+        // Core Static Gate Aliases (for backward compatibility)
         Gate::define('admin', fn (User $user) => $user->isAdmin());
-        Gate::define('manage-users', fn (User $user) => $user->isAdmin() || $user->hasPermission('manage_users'));
-        Gate::define('delete-records', fn (User $user) => $user->isAdmin() || $user->hasPermission('delete_ppm'));
-        Gate::define('edit-records', fn (User $user) => $user->isAdmin() || $user->hasPermission('edit_ppm'));
-        Gate::define('create-records', fn (User $user) => $user->isAdmin() || $user->hasPermission('create_ppm'));
+        Gate::define('manage-users', fn (User $user) => $user->hasPermission('view_users') || $user->hasPermission('manage_users') || $user->hasPermission('manage_roles'));
+        Gate::define('delete-records', fn (User $user) => $user->hasPermission('delete_ppm'));
+        Gate::define('edit-records', fn (User $user) => $user->hasPermission('edit_ppm'));
+        Gate::define('create-records', fn (User $user) => $user->hasPermission('create_ppm'));
         Gate::define('view-reports', fn (User $user) => $user->hasPermission('view_reports'));
 
         // Dynamic Database Gates for all permissions
@@ -51,12 +59,18 @@ class AppServiceProvider extends ServiceProvider
             try {
                 if (Schema::hasTable('ppm_records')) {
                     $today = now()->toDateString();
+                    $user = auth()->user();
 
-                    $dueToday = PpmRecord::whereDate('next_ppm_date', $today)
+                    // Branch scoped queries
+                    $ppmQuery = PpmRecord::forUserBranch($user);
+
+                    $dueToday = (clone $ppmQuery)
+                        ->whereDate('next_ppm_date', $today)
                         ->orderBy('id', 'desc')
                         ->get();
 
-                    $overdue = PpmRecord::whereNotNull('next_ppm_date')
+                    $overdue = (clone $ppmQuery)
+                        ->whereNotNull('next_ppm_date')
                         ->whereDate('next_ppm_date', '<', $today)
                         ->where(function ($q) {
                             $q->where('status', '!=', 'Completed')
@@ -66,17 +80,23 @@ class AppServiceProvider extends ServiceProvider
                         ->take(15)
                         ->get();
 
-                    $upcoming = PpmRecord::whereDate('next_ppm_date', '>', $today)
+                    $upcoming = (clone $ppmQuery)
+                        ->whereDate('next_ppm_date', '>', $today)
                         ->whereDate('next_ppm_date', '<=', now()->addDays(7)->toDateString())
                         ->orderBy('next_ppm_date', 'asc')
                         ->take(15)
                         ->get();
 
-                    $upcomingAll = PpmRecord::whereNotNull('next_ppm_date')
+                    $upcomingAll = (clone $ppmQuery)
+                        ->whereNotNull('next_ppm_date')
                         ->whereDate('next_ppm_date', '>=', $today)
                         ->orderBy('next_ppm_date', 'asc')
                         ->take(15)
                         ->get();
+
+                    $activeBranches = Schema::hasTable('branches') 
+                        ? Branch::active()->orderBy('name')->get() 
+                        : collect();
 
                     $view->with([
                         'navDueToday' => $dueToday,
@@ -84,6 +104,7 @@ class AppServiceProvider extends ServiceProvider
                         'navUpcoming' => $upcoming,
                         'navUpcomingAll' => $upcomingAll,
                         'navNotificationCount' => $dueToday->count() + $overdue->count(),
+                        'allActiveBranches' => $activeBranches,
                     ]);
                 }
             } catch (\Throwable $e) {
@@ -93,6 +114,7 @@ class AppServiceProvider extends ServiceProvider
                     'navOverdue' => collect(),
                     'navUpcoming' => collect(),
                     'navNotificationCount' => 0,
+                    'allActiveBranches' => collect(),
                 ]);
             }
         });

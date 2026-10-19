@@ -5,23 +5,26 @@ namespace App\Http\Controllers;
 use App\Models\PpmRecord;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PpmRecordController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource with branch scoping & dynamic permissions.
      */
     public function index(Request $request)
     {
+        $this->authorize('view_ppm');
+
         $search = $request->input('search');
         $department = $request->input('department');
         $serviceType = $request->input('service_type');
         $ppmStatus = $request->input('ppm_status');
         $today = now()->toDateString();
 
-        $query = PpmRecord::with(['customer', 'product'])->latest();
+        $query = PpmRecord::forUserBranch()->with(['customer', 'product', 'branch'])->latest();
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -59,22 +62,24 @@ class PpmRecordController extends Controller
 
         $records = $query->paginate(10)->withQueryString();
 
-        // Summary counts
+        // Branch-scoped summary counts
+        $scopedBase = PpmRecord::forUserBranch();
+
         $stats = [
-            'total' => PpmRecord::count(),
-            'new_installations' => PpmRecord::where('service_type', 'New Installation')->count(),
-            'biomedical' => PpmRecord::where('department', 'like', '%Biomedical%')->count(),
-            'due_today' => PpmRecord::whereDate('next_ppm_date', $today)->count(),
-            'overdue' => PpmRecord::whereNotNull('next_ppm_date')
+            'total' => (clone $scopedBase)->count(),
+            'new_installations' => (clone $scopedBase)->where('service_type', 'New Installation')->count(),
+            'biomedical' => (clone $scopedBase)->where('department', 'like', '%Biomedical%')->count(),
+            'due_today' => (clone $scopedBase)->whereDate('next_ppm_date', $today)->count(),
+            'overdue' => (clone $scopedBase)->whereNotNull('next_ppm_date')
                 ->whereDate('next_ppm_date', '<', $today)
                 ->where(function ($q) {
                     $q->where('status', '!=', 'Completed')
                       ->orWhereNull('status');
                 })->count(),
-            'upcoming_ppm' => PpmRecord::whereNotNull('next_ppm_date')
+            'upcoming_ppm' => (clone $scopedBase)->whereNotNull('next_ppm_date')
                 ->whereDate('next_ppm_date', '>=', $today)
                 ->count(),
-            'customers_count' => Customer::count(),
+            'customers_count' => Customer::forUserBranch()->count(),
             'products_count' => Product::count(),
         ];
 
@@ -86,10 +91,13 @@ class PpmRecordController extends Controller
      */
     public function create()
     {
-        $customers = Customer::orderBy('name')->get();
-        $products = Product::orderBy('name')->get();
+        $this->authorize('create_ppm');
 
-        return view('ppm.create', compact('customers', 'products'));
+        $customers = Customer::forUserBranch()->orderBy('name')->get();
+        $products = Product::orderBy('name')->get();
+        $branches = Branch::active()->orderBy('name')->get();
+
+        return view('ppm.create', compact('customers', 'products', 'branches'));
     }
 
     /**
@@ -97,7 +105,10 @@ class PpmRecordController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create_ppm');
+
         $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
             'customer_id' => 'nullable|exists:customers,id',
             'product_id' => 'nullable|exists:products,id',
             'record_type' => 'nullable|string|max:255',
@@ -120,6 +131,15 @@ class PpmRecordController extends Controller
             'status' => 'nullable|string|max:255',
             'remarks' => 'nullable|string',
         ]);
+
+        $user = auth()->user();
+
+        // Enforce user's branch if user does not have multi-branch global access
+        if ($user && $user->branch_id && !$user->hasAllBranchesAccess()) {
+            $validated['branch_id'] = $user->branch_id;
+        } elseif (empty($validated['branch_id']) && $user && $user->branch_id) {
+            $validated['branch_id'] = $user->branch_id;
+        }
 
         // Auto-fill customer name if customer_id selected and customer_name not typed
         if (!empty($validated['customer_id'])) {
@@ -169,7 +189,15 @@ class PpmRecordController extends Controller
      */
     public function show(PpmRecord $ppm)
     {
-        $ppm->load(['customer', 'product']);
+        $this->authorize('view_ppm');
+
+        // Check branch access if user is scoped to a specific branch
+        $user = auth()->user();
+        if ($user && !$user->hasAllBranchesAccess() && $ppm->branch_id && $ppm->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized access: This service record belongs to another branch.');
+        }
+
+        $ppm->load(['customer', 'product', 'branch']);
         return view('ppm.show', ['record' => $ppm]);
     }
 
@@ -178,13 +206,22 @@ class PpmRecordController extends Controller
      */
     public function edit(PpmRecord $ppm)
     {
-        $customers = Customer::orderBy('name')->get();
+        $this->authorize('edit_ppm');
+
+        $user = auth()->user();
+        if ($user && !$user->hasAllBranchesAccess() && $ppm->branch_id && $ppm->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized action: You cannot edit records from another branch.');
+        }
+
+        $customers = Customer::forUserBranch()->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
+        $branches = Branch::active()->orderBy('name')->get();
 
         return view('ppm.edit', [
             'record' => $ppm,
             'customers' => $customers,
             'products' => $products,
+            'branches' => $branches,
         ]);
     }
 
@@ -193,7 +230,15 @@ class PpmRecordController extends Controller
      */
     public function update(Request $request, PpmRecord $ppm)
     {
+        $this->authorize('edit_ppm');
+
+        $user = auth()->user();
+        if ($user && !$user->hasAllBranchesAccess() && $ppm->branch_id && $ppm->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized action: You cannot update records from another branch.');
+        }
+
         $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
             'customer_id' => 'nullable|exists:customers,id',
             'product_id' => 'nullable|exists:products,id',
             'record_type' => 'nullable|string|max:255',
@@ -243,6 +288,11 @@ class PpmRecordController extends Controller
             $validated['customer_name'] = 'General Customer';
         }
 
+        // If user is locked to a branch, preserve or set user's branch
+        if ($user && $user->branch_id && !$user->hasAllBranchesAccess()) {
+            $validated['branch_id'] = $user->branch_id;
+        }
+
         $ppm->update($validated);
 
         $msg = 'Installation / PPM record updated successfully.';
@@ -262,6 +312,13 @@ class PpmRecordController extends Controller
      */
     public function destroy(PpmRecord $ppm)
     {
+        $this->authorize('delete_ppm');
+
+        $user = auth()->user();
+        if ($user && !$user->hasAllBranchesAccess() && $ppm->branch_id && $ppm->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized action: You cannot delete records from another branch.');
+        }
+
         $ppm->delete();
 
         return redirect()->route('ppm.index')
@@ -269,11 +326,13 @@ class PpmRecordController extends Controller
     }
 
     /**
-     * Export all records to CSV format.
+     * Export all records to CSV format with branch awareness.
      */
     public function exportCsv(): StreamedResponse
     {
-        $records = PpmRecord::with(['customer', 'product'])->get();
+        $this->authorize('export_ppm');
+
+        $records = PpmRecord::forUserBranch()->with(['customer', 'product', 'branch'])->get();
         $filename = "installation_ppm_records_" . date('Ymd_His') . ".csv";
 
         $headers = [
@@ -285,6 +344,7 @@ class PpmRecordController extends Controller
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'ID',
+                'Branch',
                 'Type',
                 'Date',
                 'Purchase Order #',
@@ -311,6 +371,7 @@ class PpmRecordController extends Controller
             foreach ($records as $row) {
                 fputcsv($handle, [
                     $row->id,
+                    $row->branch ? $row->branch->name : 'HQ / Unassigned',
                     $row->record_type,
                     optional($row->entry_date)->format('Y-m-d'),
                     $row->purchase_order_no,
@@ -339,18 +400,70 @@ class PpmRecordController extends Controller
     }
 
     /**
+     * Import PPM Records from CSV file.
+     */
+    public function importCsv(Request $request)
+    {
+        $this->authorize('import_ppm');
+
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        $file = $request->file('csv_file');
+        $handle = fopen($file->getRealPath(), 'r');
+        $header = fgetcsv($handle); // skip header row
+
+        $imported = 0;
+        $user = auth()->user();
+        $defaultBranchId = ($user && $user->branch_id && !$user->hasAllBranchesAccess()) ? $user->branch_id : null;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            if (empty($row[0]) && empty($row[1])) {
+                continue;
+            }
+
+            // Map columns: Customer Name, Equipment, Model, Serial No, Department, Service Type, PO No, Next PPM Date
+            $custName = trim($row[1] ?? $row[0] ?? '');
+            if (empty($custName)) {
+                continue;
+            }
+
+            PpmRecord::create([
+                'branch_id' => $defaultBranchId,
+                'customer_name' => $custName,
+                'equipment_name' => $row[2] ?? $row[1] ?? 'Medical Equipment',
+                'model_make' => $row[3] ?? null,
+                'serial_no' => $row[4] ?? null,
+                'department' => $row[5] ?? 'General',
+                'service_type' => $row[6] ?? 'Routine PPM',
+                'purchase_order_no' => $row[7] ?? null,
+                'entry_date' => now(),
+                'status' => 'Pending',
+            ]);
+            $imported++;
+        }
+
+        fclose($handle);
+
+        return redirect()->route('ppm.index')
+            ->with('success', "Successfully imported {$imported} PPM record(s) from CSV.");
+    }
+
+    /**
      * API to check PPM notifications (due today, overdue, upcoming).
      */
     public function checkNotifications()
     {
         $today = now()->toDateString();
+        $scopedBase = PpmRecord::forUserBranch();
 
-        $dueToday = PpmRecord::whereDate('next_ppm_date', $today)
+        $dueToday = (clone $scopedBase)->whereDate('next_ppm_date', $today)
             ->select('id', 'customer_name', 'equipment_name', 'product_description', 'purchase_order_no', 'next_ppm_date', 'department', 'performed_by', 'status')
             ->orderBy('id', 'desc')
             ->get();
 
-        $overdue = PpmRecord::whereNotNull('next_ppm_date')
+        $overdue = (clone $scopedBase)->whereNotNull('next_ppm_date')
             ->whereDate('next_ppm_date', '<', $today)
             ->where(function ($q) {
                 $q->where('status', '!=', 'Completed')
@@ -361,7 +474,7 @@ class PpmRecordController extends Controller
             ->take(15)
             ->get();
 
-        $upcoming = PpmRecord::whereDate('next_ppm_date', '>', $today)
+        $upcoming = (clone $scopedBase)->whereDate('next_ppm_date', '>', $today)
             ->whereDate('next_ppm_date', '<=', now()->addDays(7)->toDateString())
             ->select('id', 'customer_name', 'equipment_name', 'product_description', 'purchase_order_no', 'next_ppm_date', 'department', 'performed_by', 'status')
             ->orderBy('next_ppm_date', 'asc')

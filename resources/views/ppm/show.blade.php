@@ -256,21 +256,25 @@
         </div>
 
         <div class="flex items-center flex-wrap gap-2">
+            @can('print_ppm')
             <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition active:scale-95">
                 <i class="fa-solid fa-print mr-2"></i> Print Official A4 Voucher / PDF
             </button>
+            @endcan
 
-            @can('edit-records')
+            @can('edit_ppm')
                 <a href="{{ route('ppm.edit', $record) }}" class="inline-flex items-center px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-xs font-bold shadow-xs transition">
                     <i class="fa-solid fa-pen-to-square mr-1.5 text-indigo-500"></i> Edit
                 </a>
             @endcan
 
+            @can('create_ppm')
             <a href="{{ route('ppm.create') }}" class="inline-flex items-center px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition">
                 <i class="fa-solid fa-plus mr-1"></i> New Entry
             </a>
+            @endcan
 
-            @can('delete-records')
+            @can('delete_ppm')
                 <form action="{{ route('ppm.destroy', $record) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to permanently delete this service record?');">
                     @csrf
                     @method('DELETE')

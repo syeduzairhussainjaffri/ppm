@@ -27,12 +27,16 @@
             <a href="{{ route('reports.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
                 <i class="fa-solid fa-arrow-left mr-1"></i> Reports Hub
             </a>
+            @can('export_reports')
             <a href="{{ route('reports.export', request()->query()) }}" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm">
                 <i class="fa-solid fa-file-csv mr-1.5"></i> Export CSV
             </a>
+            @endcan
+            @can('print_reports')
             <a href="{{ route('reports.print', ['report_title' => 'Customer Wise PPM Audit Report'] + request()->query()) }}" target="_blank" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition shadow-md">
                 <i class="fa-solid fa-print mr-1.5"></i> Print Audit Sheet
             </a>
+            @endcan
         </div>
     </div>
 

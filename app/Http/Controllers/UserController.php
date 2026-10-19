@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -14,16 +15,19 @@ use Illuminate\Validation\Rules;
 class UserController extends Controller
 {
     /**
-     * Display Unified User, Role & Permission Management Center.
+     * Display Unified User, Role, Permission & Branch Management Center.
      */
     public function index(Request $request)
     {
+        $this->authorize('view_users');
+
         $search = $request->input('search');
         $roleFilter = $request->input('role');
+        $branchFilter = $request->input('branch');
         $activeTab = $request->input('tab', 'users');
 
-        // 1. Users Query
-        $usersQuery = User::latest();
+        // 1. Users Query with Branch & Role
+        $usersQuery = User::with(['branch'])->latest();
 
         if ($search) {
             $usersQuery->where(function ($q) use ($search) {
@@ -36,6 +40,14 @@ class UserController extends Controller
             $usersQuery->where('role', $roleFilter);
         }
 
+        if ($branchFilter) {
+            if ($branchFilter === 'none') {
+                $usersQuery->whereNull('branch_id');
+            } else {
+                $usersQuery->where('branch_id', $branchFilter);
+            }
+        }
+
         $users = $usersQuery->paginate(15)->withQueryString();
 
         // 2. Roles Query (with associated permissions)
@@ -45,11 +57,16 @@ class UserController extends Controller
         $permissions = Permission::orderBy('group_name')->orderBy('name')->get();
         $groupedPermissions = $permissions->groupBy('group_name');
 
+        // 4. Branches Query with user and record counts
+        $branches = Branch::withCount(['users', 'ppmRecords'])->orderBy('name')->get();
+
         $stats = [
             'total_users' => User::count(),
             'total_roles' => Role::count(),
             'total_permissions' => Permission::count(),
+            'total_branches' => Branch::count(),
             'active_users' => User::where('is_active', true)->count(),
+            'active_branches' => Branch::where('is_active', true)->count(),
         ];
 
         return view('users.index', compact(
@@ -57,9 +74,11 @@ class UserController extends Controller
             'roles',
             'permissions',
             'groupedPermissions',
+            'branches',
             'stats',
             'search',
             'roleFilter',
+            'branchFilter',
             'activeTab'
         ));
     }
@@ -69,11 +88,14 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create_users');
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', Rules\Password::defaults()],
             'role' => ['required', 'string'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -82,6 +104,7 @@ class UserController extends Controller
             'email' => strtolower($validated['email']),
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'branch_id' => $validated['branch_id'] ?? null,
             'is_active' => $request->has('is_active') ? (bool) $validated['is_active'] : true,
         ]);
 
@@ -93,10 +116,13 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        $this->authorize('edit_users');
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'role' => ['required', 'string'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
             'password' => ['nullable', Rules\Password::defaults()],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -105,6 +131,7 @@ class UserController extends Controller
             'name' => $validated['name'],
             'email' => strtolower($validated['email']),
             'role' => $validated['role'],
+            'branch_id' => $validated['branch_id'] ?? null,
             'is_active' => $request->has('is_active') ? (bool) $validated['is_active'] : $user->is_active,
         ];
 
@@ -122,6 +149,8 @@ class UserController extends Controller
      */
     public function toggleStatus(User $user)
     {
+        $this->authorize('edit_users');
+
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index', ['tab' => 'users'])->with('error', 'You cannot deactivate your own account.');
         }
@@ -137,6 +166,8 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        $this->authorize('delete_users');
+
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index', ['tab' => 'users'])->with('error', 'You cannot delete your own account.');
         }
@@ -152,6 +183,8 @@ class UserController extends Controller
      */
     public function storeRole(Request $request)
     {
+        $this->authorize('manage_roles');
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
@@ -184,6 +217,8 @@ class UserController extends Controller
      */
     public function updateRole(Request $request, Role $role)
     {
+        $this->authorize('manage_roles');
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
@@ -215,6 +250,8 @@ class UserController extends Controller
      */
     public function destroyRole(Role $role)
     {
+        $this->authorize('manage_roles');
+
         if ($role->is_system) {
             return redirect()->route('users.index', ['tab' => 'roles'])->with('error', 'System protected core roles cannot be deleted.');
         }
@@ -230,6 +267,8 @@ class UserController extends Controller
      */
     public function storePermission(Request $request)
     {
+        $this->authorize('manage_permissions');
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'group_name' => ['required', 'string', 'max:255'],
@@ -255,6 +294,8 @@ class UserController extends Controller
      */
     public function destroyPermission(Permission $permission)
     {
+        $this->authorize('manage_permissions');
+
         $name = $permission->name;
         $permission->delete();
 
