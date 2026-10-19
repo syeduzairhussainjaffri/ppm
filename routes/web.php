@@ -51,7 +51,9 @@ Route::middleware(['auth', RoleMiddleware::class])->group(function () {
     // PPM Field Operations
     Route::get('/ppm/notifications/check', [PpmRecordController::class, 'checkNotifications'])->name('ppm.notifications.check');
     Route::get('/ppm/export/csv', [PpmRecordController::class, 'exportCsv'])->name('ppm.export');
-    Route::post('/ppm/import/csv', [PpmRecordController::class, 'importCsv'])->name('ppm.import');
+    Route::get('/ppm/import/template', [PpmRecordController::class, 'downloadTemplate'])->name('ppm.template');
+    Route::post('/ppm/import/excel', [PpmRecordController::class, 'importExcel'])->name('ppm.import.excel');
+    Route::post('/ppm/import/csv', [PpmRecordController::class, 'importExcel'])->name('ppm.import');
     Route::resource('ppm', PpmRecordController::class);
 
     // Dynamic Master Data: Customers

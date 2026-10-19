@@ -100,10 +100,10 @@
         </div>
 
         <!-- Navigation Links: Smooth vertical scrolling for smaller screens -->
-        <nav class="flex-grow px-2.5 py-2 space-y-1 overflow-y-auto min-h-0">
+        <nav class="flex-grow px-2.5 py-2 space-y-1.5 overflow-y-auto min-h-0">
             @can('view_ppm')
                 <div class="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    PPM &amp; Installation
+                    Recording &amp; Service Operations
                 </div>
 
                 <a href="{{ route('ppm.index') }}" 
@@ -113,6 +113,14 @@
                         <span>All PPM Records</span>
                     </div>
                 </a>
+
+                @can('create_ppm')
+                    <a href="{{ route('ppm.create') }}" 
+                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('ppm.create') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <i class="fa-solid fa-circle-plus w-5 text-sm {{ request()->routeIs('ppm.create') ? 'text-white' : 'text-teal-400' }}"></i>
+                        <span>New Service Form</span>
+                    </a>
+                @endcan
 
                 <!-- PPM Due Today Link -->
                 <a href="{{ route('ppm.index', ['ppm_status' => 'due_today']) }}" 
@@ -141,14 +149,52 @@
                         </span>
                     @endif
                 </a>
+            @endcan
 
-                @can('create_ppm')
-                    <a href="{{ route('ppm.create') }}" 
-                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('ppm.create') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                        <i class="fa-solid fa-circle-plus w-5 text-sm {{ request()->routeIs('ppm.create') ? 'text-white' : 'text-teal-400' }}"></i>
-                        <span>New Service Form</span>
-                    </a>
-                @endcan
+            @can('view_reports')
+                <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Reporting &amp; Analytics
+                </div>
+
+                <!-- Collapsible Reporting Dropdown in Sidebar -->
+                <div class="relative" id="sidebarReportsWrapper">
+                    <button type="button" onclick="toggleSidebarReportsDropdown()" 
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.*') ? 'bg-slate-800 text-white border border-slate-700/80' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-chart-pie w-5 text-sm {{ request()->routeIs('reports.*') ? 'text-teal-400' : 'text-slate-400' }}"></i>
+                            <span>Reports &amp; Analytics</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200 {{ request()->routeIs('reports.*') ? 'rotate-180 text-teal-400' : '' }}" id="sidebarReportsChevron"></i>
+                    </button>
+
+                    <div id="sidebarReportsSubmenu" class="space-y-1 pl-4 pr-1 pt-1.5 {{ request()->routeIs('reports.*') ? 'block' : 'hidden' }}">
+                        <a href="{{ route('reports.index') }}" 
+                           class="flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-medium transition {{ request()->routeIs('reports.index') ? 'bg-teal-600 text-white' : 'text-slate-400 hover:bg-slate-800/80 hover:text-white' }}">
+                            <i class="fa-solid fa-gauge-high w-4 text-[10px] mr-1.5 {{ request()->routeIs('reports.index') ? 'text-white' : 'text-teal-400' }}"></i>
+                            <span>Analytics Hub</span>
+                        </a>
+
+                        <a href="{{ route('reports.customer') }}" 
+                           class="flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-medium transition {{ request()->routeIs('reports.customer') ? 'bg-teal-600 text-white' : 'text-slate-400 hover:bg-slate-800/80 hover:text-white' }}">
+                            <i class="fa-solid fa-hospital-user w-4 text-[10px] mr-1.5 {{ request()->routeIs('reports.customer') ? 'text-white' : 'text-blue-400' }}"></i>
+                            <span>Customer-Wise</span>
+                        </a>
+
+                        <a href="{{ route('reports.product') }}" 
+                           class="flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-medium transition {{ request()->routeIs('reports.product') ? 'bg-teal-600 text-white' : 'text-slate-400 hover:bg-slate-800/80 hover:text-white' }}">
+                            <i class="fa-solid fa-boxes-stacked w-4 text-[10px] mr-1.5 {{ request()->routeIs('reports.product') ? 'text-white' : 'text-indigo-400' }}"></i>
+                            <span>Product-Wise</span>
+                        </a>
+
+                        @can('export_reports')
+                            <a href="{{ route('reports.export') }}" 
+                               class="flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-medium text-emerald-400 hover:bg-slate-800/80 hover:text-emerald-300 transition">
+                                <i class="fa-solid fa-file-csv w-4 text-[10px] mr-1.5 text-emerald-400"></i>
+                                <span>Export CSV Data</span>
+                            </a>
+                        @endcan
+                    </div>
+                </div>
             @endcan
 
             @if(Gate::check('view_customers') || Gate::check('view_products'))
@@ -183,38 +229,6 @@
                     <span>Access Control &amp; Branches</span>
                 </a>
             @endif
-
-            @can('view_reports')
-                <div class="px-2 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Exports &amp; Reports Hub
-                </div>
-
-                <a href="{{ route('reports.index') }}" 
-                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.index') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                    <i class="fa-solid fa-chart-pie w-5 text-sm {{ request()->routeIs('reports.index') ? 'text-white' : 'text-teal-400' }}"></i>
-                    <span>Reports &amp; Analytics Hub</span>
-                </a>
-
-                <a href="{{ route('reports.customer') }}" 
-                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.customer') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                    <i class="fa-solid fa-hospital-user w-5 text-sm {{ request()->routeIs('reports.customer') ? 'text-white' : 'text-teal-400' }}"></i>
-                    <span>Customer-Wise Report</span>
-                </a>
-
-                <a href="{{ route('reports.product') }}" 
-                   class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition {{ request()->routeIs('reports.product') ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                    <i class="fa-solid fa-boxes-stacked w-5 text-sm {{ request()->routeIs('reports.product') ? 'text-white' : 'text-blue-400' }}"></i>
-                    <span>Product-Wise Report</span>
-                </a>
-
-                @can('export_reports')
-                    <a href="{{ route('reports.export') }}" 
-                       class="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
-                        <i class="fa-solid fa-file-csv w-5 text-sm text-emerald-400"></i>
-                        <span>Export CSV Sheet</span>
-                    </a>
-                @endcan
-            @endcan
         </nav>
 
         <!-- Compact Server Status Footer -->
@@ -397,6 +411,74 @@
                     @endif
                 @endauth
 
+                @can('view_reports')
+                <!-- Reporting & Analytics Dropdown in Top Nav -->
+                <div class="relative group" id="headerReportsDropdownContainer">
+                    <button id="headerReportsBtn" onclick="toggleHeaderReportsDropdown(event)" 
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition shadow-2xs {{ request()->routeIs('reports.*') ? 'bg-teal-50 border-teal-300 text-teal-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' }}">
+                        <i class="fa-solid fa-chart-pie text-sm text-teal-600"></i>
+                        <span>Reports &amp; Analytics</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 group-hover:text-slate-600 transition-transform duration-200" id="headerReportsChevron"></i>
+                    </button>
+
+                    <!-- Reports Flyout Menu (Opens on Hover or Click) -->
+                    <div id="headerReportsMenu" 
+                         class="hidden group-hover:md:block absolute right-0 mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left">
+                        <div class="px-3.5 py-1.5 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Available Analytics &amp; Reports
+                        </div>
+                        
+                        <a href="{{ route('reports.index') }}" 
+                           class="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-900 transition {{ request()->routeIs('reports.index') ? 'bg-teal-50/80 text-teal-800 font-bold' : '' }}">
+                            <div class="w-6 h-6 rounded-md bg-teal-100 text-teal-700 flex items-center justify-center text-xs shrink-0">
+                                <i class="fa-solid fa-gauge-high"></i>
+                            </div>
+                            <div>
+                                <p class="leading-tight">Reports &amp; Analytics Hub</p>
+                                <p class="text-[10px] font-normal text-slate-500">Summary dashboard &amp; KPIs</p>
+                            </div>
+                        </a>
+
+                        <a href="{{ route('reports.customer') }}" 
+                           class="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-900 transition {{ request()->routeIs('reports.customer') ? 'bg-teal-50/80 text-teal-800 font-bold' : '' }}">
+                            <div class="w-6 h-6 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center text-xs shrink-0">
+                                <i class="fa-solid fa-hospital-user"></i>
+                            </div>
+                            <div>
+                                <p class="leading-tight">Customer-Wise Report</p>
+                                <p class="text-[10px] font-normal text-slate-500">Hospital breakdown &amp; equipment</p>
+                            </div>
+                        </a>
+
+                        <a href="{{ route('reports.product') }}" 
+                           class="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-900 transition {{ request()->routeIs('reports.product') ? 'bg-teal-50/80 text-teal-800 font-bold' : '' }}">
+                            <div class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs shrink-0">
+                                <i class="fa-solid fa-boxes-stacked"></i>
+                            </div>
+                            <div>
+                                <p class="leading-tight">Product-Wise Report</p>
+                                <p class="text-[10px] font-normal text-slate-500">Device model &amp; schedule analysis</p>
+                            </div>
+                        </a>
+
+                        @can('export_reports')
+                        <div class="pt-1 mt-1 border-t border-slate-100">
+                            <a href="{{ route('reports.export') }}" 
+                               class="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition">
+                                <div class="w-6 h-6 rounded-md bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs shrink-0">
+                                    <i class="fa-solid fa-file-csv"></i>
+                                </div>
+                                <div>
+                                    <p class="leading-tight">Export Complete CSV</p>
+                                    <p class="text-[10px] font-normal text-slate-500">Download active branch data</p>
+                                </div>
+                            </a>
+                        </div>
+                        @endcan
+                    </div>
+                </div>
+                @endcan
+
                 @can('create_ppm')
                     <a href="{{ route('ppm.create') }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition">
                         <i class="fa-solid fa-plus mr-1.5"></i> New Form
@@ -494,12 +576,49 @@
             }
         }
 
-        // Close dropdown when clicked outside
+        // Toggle Top Header Reports Dropdown (Click or Hover)
+        function toggleHeaderReportsDropdown(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            const menu = document.getElementById('headerReportsMenu');
+            const chevron = document.getElementById('headerReportsChevron');
+            if (menu) {
+                menu.classList.toggle('hidden');
+                if (chevron) {
+                    chevron.classList.toggle('rotate-180');
+                }
+            }
+        }
+
+        // Toggle Sidebar Reports Submenu
+        function toggleSidebarReportsDropdown() {
+            const submenu = document.getElementById('sidebarReportsSubmenu');
+            const chevron = document.getElementById('sidebarReportsChevron');
+            if (submenu) {
+                submenu.classList.toggle('hidden');
+                if (chevron) {
+                    chevron.classList.toggle('rotate-180');
+                }
+            }
+        }
+
+        // Close dropdowns when clicked outside
         document.addEventListener('click', function(e) {
-            const container = document.getElementById('ppmNotificationContainer');
-            const panel = document.getElementById('ppmNotificationPanel');
-            if (panel && container && !container.contains(e.target)) {
-                panel.classList.add('hidden');
+            const notifContainer = document.getElementById('ppmNotificationContainer');
+            const notifPanel = document.getElementById('ppmNotificationPanel');
+            if (notifPanel && notifContainer && !notifContainer.contains(e.target)) {
+                notifPanel.classList.add('hidden');
+            }
+
+            const reportsContainer = document.getElementById('headerReportsDropdownContainer');
+            const reportsMenu = document.getElementById('headerReportsMenu');
+            const reportsChevron = document.getElementById('headerReportsChevron');
+            if (reportsMenu && reportsContainer && !reportsContainer.contains(e.target)) {
+                reportsMenu.classList.add('hidden');
+                if (reportsChevron) {
+                    reportsChevron.classList.remove('rotate-180');
+                }
             }
         });
 

@@ -540,12 +540,13 @@
                 </div>
             </div>
 
-            <!-- Right: Verification -->
+            <!-- Right: Hospital / Biomedical HOD -->
             <div class="sign-box border border-slate-200 rounded-xl p-2.5 bg-slate-50/60 shadow-2xs">
                 <div class="sign-area h-24 flex flex-col justify-end items-center pb-1">
+                    <p class="text-slate-400 italic text-[9px]">Official Stamp &amp; Signature</p>
                 </div>
                 <div class="border-t border-slate-300 pt-1">
-                    <p class="font-black uppercase tracking-wider text-slate-800 text-[10px]">Verification</p>
+                    <p class="font-black uppercase tracking-wider text-slate-800 text-[10px]">Hospital</p>
                     <p class="text-[9px] text-slate-500">Authorized Signature &amp; Official Stamp</p>
                 </div>
             </div>

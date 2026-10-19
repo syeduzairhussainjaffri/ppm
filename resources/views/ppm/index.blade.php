@@ -19,7 +19,7 @@
             @endcan
             @can('import_ppm')
             <button type="button" onclick="document.getElementById('ppmImportModal').classList.remove('hidden')" class="inline-flex items-center px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs">
-                <i class="fa-solid fa-file-arrow-up mr-2 text-blue-600"></i> Import CSV
+                <i class="fa-solid fa-file-excel mr-2 text-emerald-600"></i> Import Excel / CSV
             </button>
             @endcan
             @can('create_ppm')
@@ -379,33 +379,38 @@
         <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 mx-4">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center text-sm font-bold">
-                        <i class="fa-solid fa-file-arrow-up"></i>
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-bold">
+                        <i class="fa-solid fa-file-excel"></i>
                     </div>
-                    <h3 class="text-base font-bold text-slate-800">Import PPM Records from CSV</h3>
+                    <h3 class="text-base font-bold text-slate-800">Import PPM Records from Excel / CSV</h3>
                 </div>
                 <button type="button" onclick="document.getElementById('ppmImportModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <form action="{{ route('ppm.import') }}" method="POST" enctype="multipart/form-data" class="mt-4 space-y-4">
+            <form action="{{ route('ppm.import.excel') }}" method="POST" enctype="multipart/form-data" class="mt-4 space-y-4">
                 @csrf
-                <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
-                    <p class="font-bold flex items-center gap-1.5 mb-1"><i class="fa-solid fa-circle-info"></i> CSV Format Note</p>
-                    <p>Expected columns: <code>Customer Name, Equipment, Model, Serial No, Department, Service Type, PO No</code></p>
+                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-center justify-between">
+                    <div>
+                        <p class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-info text-emerald-600"></i> Formatted Template Available</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">Excel template with column headers and sample data.</p>
+                    </div>
+                    <a href="{{ route('ppm.template', ['format' => 'xlsx']) }}" class="px-2.5 py-1 text-xs font-bold bg-white text-emerald-700 hover:bg-emerald-100 border border-emerald-300 rounded-md shadow-2xs transition">
+                        <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Template (.xlsx)
+                    </a>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Select CSV File</label>
-                    <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer border border-slate-200 rounded-xl p-2 bg-slate-50">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Select Excel (.xlsx, .xls) or CSV File</label>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls,.csv,.txt" required class="block w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer border border-slate-200 rounded-xl p-2 bg-slate-50">
                 </div>
 
                 <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                     <button type="button" onclick="document.getElementById('ppmImportModal').classList.add('hidden')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">
                         Cancel
                     </button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold shadow-xs transition inline-flex items-center gap-1.5">
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition inline-flex items-center gap-1.5">
                         <i class="fa-solid fa-upload"></i> Upload &amp; Import
                     </button>
                 </div>

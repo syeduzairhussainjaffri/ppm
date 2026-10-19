@@ -13,9 +13,16 @@
             </h1>
             <p class="text-xs text-slate-500 mt-0.5">Biomedical equipment installation sheet, hospital customer records &amp; preventive maintenance schedule.</p>
         </div>
-        <a href="{{ route('ppm.index') }}" class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs">
-            <i class="fa-solid fa-arrow-left mr-1.5"></i> Back to Register
-        </a>
+        <div class="flex items-center gap-2">
+            @can('import_ppm')
+            <button type="button" onclick="openExcelImportModal()" class="inline-flex items-center px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition">
+                <i class="fa-solid fa-file-excel mr-1.5 text-emerald-200"></i> Import from Excel / CSV
+            </button>
+            @endcan
+            <a href="{{ route('ppm.index') }}" class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs">
+                <i class="fa-solid fa-arrow-left mr-1.5"></i> Back to Register
+            </a>
+        </div>
     </div>
 
     @if ($errors->any())
@@ -31,6 +38,34 @@
 
     <form action="{{ route('ppm.store') }}" method="POST" id="ppmForm" class="bg-white border border-slate-200 rounded-xl shadow-xs p-4 sm:p-5 space-y-4">
         @csrf
+
+        <!-- Quick Import Banner for Bulk Excel Import -->
+        @can('import_ppm')
+        <div class="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 p-3 sm:p-4 rounded-xl border border-emerald-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shrink-0 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs sm:text-sm font-bold text-emerald-950 flex items-center gap-1.5">
+                        Bulk Import Records via Excel or CSV
+                        <span class="px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full text-[10px] font-bold">Fast &amp; Easy</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-600 mt-0.5">
+                        Multiple machines, hospitals, serial numbers or PPM entries excel spreadsheet se direct import karain. Customers &amp; Products automatically register ho jayenge.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <a href="{{ route('ppm.template', ['format' => 'xlsx']) }}" class="inline-flex items-center px-3 py-1.5 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-semibold shadow-2xs transition">
+                    <i class="fa-solid fa-cloud-arrow-down mr-1.5"></i> Download Excel Template
+                </a>
+                <button type="button" onclick="openExcelImportModal()" class="inline-flex items-center px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition">
+                    <i class="fa-solid fa-upload mr-1.5"></i> Upload Excel File
+                </button>
+            </div>
+        </div>
+        @endcan
 
         @if(auth()->user()->hasAllBranchesAccess() || auth()->user()->isAdmin())
         <!-- Branch Assignment (For Multi-Branch / Admin Users) -->
@@ -383,6 +418,120 @@
         </form>
     </div>
 </div>
+
+<!-- ================= EXCEL / CSV IMPORT MODAL ================= -->
+@can('import_ppm')
+<div id="excelImportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200">
+        <!-- Modal Header -->
+        <div class="px-5 py-4 bg-emerald-600 text-white flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/60 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-file-excel text-base"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm">Import PPM / Equipment Records from Excel</h3>
+                    <p class="text-[11px] text-emerald-100">Supports .xlsx, .xls, and .csv files with auto-header mapping</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeExcelImportModal()" class="text-white/80 hover:text-white text-2xl leading-none">&times;</button>
+        </div>
+
+        <form action="{{ route('ppm.import.excel') }}" method="POST" enctype="multipart/form-data" class="p-5 space-y-4">
+            @csrf
+
+            <!-- Template Download Hint -->
+            <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <i class="fa-solid fa-circle-info text-emerald-600 text-sm"></i>
+                    <div>
+                        <p class="text-xs font-bold text-emerald-950">Need the formatted Excel template?</p>
+                        <p class="text-[11px] text-slate-500">Download pre-configured columns with sample data.</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                    <a href="{{ route('ppm.template', ['format' => 'xlsx']) }}" class="px-2.5 py-1 text-xs font-bold bg-white text-emerald-700 hover:bg-emerald-100 border border-emerald-300 rounded-md transition shadow-2xs">
+                        <i class="fa-solid fa-file-excel mr-1 text-emerald-600"></i> .xlsx
+                    </a>
+                    <a href="{{ route('ppm.template', ['format' => 'csv']) }}" class="px-2.5 py-1 text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-md transition shadow-2xs">
+                        <i class="fa-solid fa-file-csv mr-1 text-slate-600"></i> .csv
+                    </a>
+                </div>
+            </div>
+
+            @if(auth()->user()->hasAllBranchesAccess() || auth()->user()->isAdmin())
+            <!-- Optional Target Branch -->
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                    Assign to Branch (Fallback if not in file)
+                </label>
+                <select name="default_branch_id" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-emerald-500">
+                    <option value="">-- Auto-detect from file or Main Branch --</option>
+                    @foreach($branches as $b)
+                        <option value="{{ $b->id }}" {{ (session('current_branch_id', auth()->user()->branch_id) == $b->id) ? 'selected' : '' }}>
+                            {{ $b->name }} ({{ $b->code }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
+
+            <!-- Drag & Drop File Upload Area -->
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                    Choose Excel or CSV File <span class="text-rose-500">*</span>
+                </label>
+                <div id="dropzoneContainer" 
+                     class="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/60 rounded-xl p-5 text-center cursor-pointer transition relative">
+                    <input type="file" name="excel_file" id="excel_file_input" required accept=".xlsx,.xls,.csv,.txt"
+                           class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="onExcelFileSelected(event)">
+                    
+                    <div id="dropzonePrompt" class="space-y-1.5">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <p class="text-xs font-bold text-slate-700">Click to browse or drag &amp; drop Excel file here</p>
+                        <p class="text-[11px] text-slate-500">Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> (Max: 20MB)</p>
+                    </div>
+
+                    <div id="dropzoneSelected" class="hidden space-y-1">
+                        <div class="w-10 h-10 mx-auto rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-file-excel"></i>
+                        </div>
+                        <p id="selectedFileName" class="text-xs font-bold text-emerald-900"></p>
+                        <p id="selectedFileSize" class="text-[11px] text-slate-500"></p>
+                        <button type="button" onclick="clearExcelFile(event)" class="text-[11px] text-rose-600 hover:underline font-semibold mt-1">
+                            <i class="fa-solid fa-trash mr-1"></i> Remove &amp; pick another
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Info Box -->
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <p class="font-bold text-slate-700 text-xs flex items-center">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-1.5"></i> Smart Auto-Sync Features:
+                </p>
+                <ul class="list-disc list-inside space-y-0.5 text-slate-600 ml-1">
+                    <li>Hospital / Customer agar pehle se mojood na ho to system <strong>automatically create</strong> kar dega.</li>
+                    <li>Equipment / Product auto-link hoga aur new product directory me register ho jayega.</li>
+                    <li>Next PPM notification dates auto-schedule ho jayengi.</li>
+                </ul>
+            </div>
+
+            <!-- Modal Footer Buttons -->
+            <div class="pt-2 border-t border-slate-200 flex justify-end gap-2">
+                <button type="button" onclick="closeExcelImportModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" id="btnSubmitImport" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center">
+                    <i class="fa-solid fa-upload mr-1.5"></i> Upload &amp; Import Records
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endcan
 @endsection
 
 @push('scripts')
@@ -573,6 +722,71 @@
             submitBtn.disabled = false;
             submitBtn.innerText = 'Save & Select';
         }
+    }
+
+    // Excel Import Modal Handlers
+    function openExcelImportModal() {
+        const modal = document.getElementById('excelImportModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function closeExcelImportModal() {
+        const modal = document.getElementById('excelImportModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    function onExcelFileSelected(event) {
+        const input = event.target;
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const nameEl = document.getElementById('selectedFileName');
+            const sizeEl = document.getElementById('selectedFileSize');
+            const promptBox = document.getElementById('dropzonePrompt');
+            const selectedBox = document.getElementById('dropzoneSelected');
+
+            if (nameEl) nameEl.textContent = file.name;
+            if (sizeEl) sizeEl.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+            if (promptBox) promptBox.classList.add('hidden');
+            if (selectedBox) selectedBox.classList.remove('hidden');
+        }
+    }
+
+    function clearExcelFile(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const input = document.getElementById('excel_file_input');
+        if (input) input.value = '';
+
+        const promptBox = document.getElementById('dropzonePrompt');
+        const selectedBox = document.getElementById('dropzoneSelected');
+        if (promptBox) promptBox.classList.remove('hidden');
+        if (selectedBox) selectedBox.classList.add('hidden');
+    }
+
+    // Drag and drop feedback for dropzone
+    const dropzone = document.getElementById('dropzoneContainer');
+    if (dropzone) {
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropzone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('border-emerald-600', 'bg-emerald-100/50');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            dropzone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('border-emerald-600', 'bg-emerald-100/50');
+            });
+        });
     }
 </script>
 @endpush

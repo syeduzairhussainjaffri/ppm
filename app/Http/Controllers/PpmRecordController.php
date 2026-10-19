@@ -8,6 +8,11 @@ use App\Models\Product;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use Carbon\Carbon;
 
 class PpmRecordController extends Controller
 {
@@ -400,54 +405,352 @@ class PpmRecordController extends Controller
     }
 
     /**
-     * Import PPM Records from CSV file.
+     * Download Excel/CSV Import Template with sample data and column instructions.
      */
-    public function importCsv(Request $request)
+    public function downloadTemplate(Request $request)
+    {
+        $this->authorize('import_ppm');
+
+        $format = $request->query('format', 'xlsx');
+
+        $headers = [
+            'Branch Name / Code',
+            'Customer / Hospital Name',
+            'Department',
+            'Contact Person',
+            'Contact Number',
+            'Product / Item Description',
+            'Equipment Name',
+            'Model / Make',
+            'Serial Number (S/N)',
+            'Purchase Order # (P.O)',
+            'Supply Against',
+            'Entry Date (YYYY-MM-DD)',
+            'Installation Date (YYYY-MM-DD)',
+            'Service Performed By',
+            'Service Type',
+            'Record Type',
+            'Next PPM Due Date (YYYY-MM-DD)',
+            'Status',
+            'Scope of Work',
+            'Remarks / Notes',
+        ];
+
+        $sampleRow = [
+            'Main Branch',
+            'Liaquat National Hospital',
+            'Biomedical / ICU',
+            'Engr. Tariq Mehmood',
+            '0300-1234567',
+            'Oxygen Supply Line 400 Beds',
+            'Medical Oxygen Plant',
+            'Noxerior Italy',
+            'SN-987654-2026',
+            'PO-2026-0091',
+            'Supply Order REF-01',
+            date('Y-m-d'),
+            date('Y-m-d'),
+            'Engr. Daniyal',
+            'New Installation',
+            'Installation / PPM',
+            date('Y-m-d', strtotime('+90 days')),
+            'Completed',
+            'System installed, calibrated and commissioned successfully.',
+            'Periodic maintenance scheduled after 90 days.',
+        ];
+
+        if ($format === 'csv') {
+            $filename = "ppm_import_template_" . date('Ymd') . ".csv";
+            return response()->stream(function () use ($headers, $sampleRow) {
+                $handle = fopen('php://output', 'w');
+                fputcsv($handle, $headers);
+                fputcsv($handle, $sampleRow);
+                fclose($handle);
+            }, 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ]);
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('PPM Import Template');
+
+        // Header Styling
+        $sheet->fromArray([$headers], null, 'A1');
+        $sheet->fromArray([$sampleRow], null, 'A2');
+
+        // Style Header Row
+        $headerRange = 'A1:T1';
+        $sheet->getStyle($headerRange)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle($headerRange)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('0D9488'); // Teal 600
+
+        foreach (range('A', 'T') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = "ppm_import_template_" . date('Ymd') . ".xlsx";
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Import PPM Records from Excel (.xlsx, .xls) or CSV file.
+     */
+    public function importExcel(Request $request)
     {
         $this->authorize('import_ppm');
 
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+            'excel_file' => 'required|file|mimes:xlsx,xls,csv,txt|max:20480',
+            'default_branch_id' => 'nullable|exists:branches,id',
         ]);
 
-        $file = $request->file('csv_file');
-        $handle = fopen($file->getRealPath(), 'r');
-        $header = fgetcsv($handle); // skip header row
+        $file = $request->file('excel_file');
+        $extension = strtolower($file->getClientOriginalExtension());
+        $user = auth()->user();
+
+        // Branch scoping
+        $fallbackBranchId = null;
+        if ($user && $user->branch_id && !$user->hasAllBranchesAccess()) {
+            $fallbackBranchId = $user->branch_id;
+        } elseif ($request->filled('default_branch_id')) {
+            $fallbackBranchId = $request->input('default_branch_id');
+        } elseif (session('selected_branch_id') && session('selected_branch_id') !== 'all') {
+            $fallbackBranchId = session('selected_branch_id');
+        }
+
+        // Parse rows depending on format
+        $rows = [];
+        if ($extension === 'csv' || $extension === 'txt') {
+            if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+                while (($data = fgetcsv($handle)) !== false) {
+                    $rows[] = $data;
+                }
+                fclose($handle);
+            }
+        } else {
+            try {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $sheet = $spreadsheet->getActiveSheet();
+                $rows = $sheet->toArray(null, true, true, false);
+            } catch (\Exception $e) {
+                return back()->withErrors(['excel_file' => 'Unable to read the Excel file: ' . $e->getMessage()]);
+            }
+        }
+
+        if (empty($rows) || count($rows) < 2) {
+            return back()->withErrors(['excel_file' => 'The uploaded file appears to be empty or does not contain data rows.']);
+        }
+
+        $headerRow = array_map(function ($item) {
+            return strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '', (string)$item)));
+        }, $rows[0]);
+
+        // Helper to find column index by aliases
+        $findCol = function (array $aliases) use ($headerRow) {
+            foreach ($aliases as $alias) {
+                $clean = strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '', $alias)));
+                $idx = array_search($clean, $headerRow, true);
+                if ($idx !== false) {
+                    return $idx;
+                }
+            }
+            return false;
+        };
+
+        $colBranch = $findCol(['branch', 'branchname', 'branchcode']);
+        $colCustomer = $findCol(['customer', 'customername', 'hospital', 'hospitalname', 'organization']);
+        $colDept = $findCol(['department', 'dept', 'unit']);
+        $colContactPerson = $findCol(['contactperson', 'supervisor', 'contact']);
+        $colContactNo = $findCol(['contactno', 'phone', 'contactnumber', 'mobile']);
+        $colProduct = $findCol(['product', 'productdescription', 'descriptionofproduct', 'item']);
+        $colEquipment = $findCol(['equipment', 'equipmentname', 'device']);
+        $colModel = $findCol(['model', 'make', 'modelmake']);
+        $colSerial = $findCol(['serial', 'serialno', 'sn', 'serialnumber']);
+        $colPO = $findCol(['po', 'purchaseorderno', 'purchaseorder', 'pono']);
+        $colSupply = $findCol(['supplyagainst', 'supply']);
+        $colEntryDate = $findCol(['entrydate', 'date', 'formdate']);
+        $colInstallDate = $findCol(['installationdate', 'dateofinstallation', 'installdate']);
+        $colPerformedBy = $findCol(['performedby', 'serviceperformedby', 'engineer', 'technician']);
+        $colServiceType = $findCol(['servicetype', 'activity']);
+        $colRecordType = $findCol(['recordtype', 'type']);
+        $colNextPpmDate = $findCol(['nextppmdate', 'nextduedate', 'nextppm']);
+        $colStatus = $findCol(['status', 'state']);
+        $colScope = $findCol(['scopeofwork', 'scope']);
+        $colRemarks = $findCol(['remarks', 'notes', 'specialnotes']);
+
+        // Cache existing branches, customers, and products for fast ID lookup
+        $branchesCache = Branch::all()->keyBy(function ($b) {
+            return strtolower(trim($b->name));
+        });
+        $customersCache = Customer::all()->keyBy(function ($c) {
+            return strtolower(trim($c->name));
+        });
+        $productsCache = Product::all()->keyBy(function ($p) {
+            return strtolower(trim($p->name));
+        });
+
+        $parseDate = function ($raw) {
+            if (empty($raw)) {
+                return null;
+            }
+            if (is_numeric($raw)) {
+                try {
+                    return Carbon::instance(ExcelDate::excelToDateTimeObject($raw))->toDateString();
+                } catch (\Exception $e) {
+                    // ignore
+                }
+            }
+            try {
+                return Carbon::parse(trim($raw))->toDateString();
+            } catch (\Exception $e) {
+                return null;
+            }
+        };
 
         $imported = 0;
-        $user = auth()->user();
-        $defaultBranchId = ($user && $user->branch_id && !$user->hasAllBranchesAccess()) ? $user->branch_id : null;
+        $skipped = 0;
 
-        while (($row = fgetcsv($handle)) !== false) {
-            if (empty($row[0]) && empty($row[1])) {
+        // Process data rows
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+
+            // Resolve Customer Name
+            $customerName = '';
+            if ($colCustomer !== false && !empty($row[$colCustomer])) {
+                $customerName = trim((string)$row[$colCustomer]);
+            } elseif (!empty($row[1])) {
+                $customerName = trim((string)$row[1]);
+            } elseif (!empty($row[0])) {
+                $customerName = trim((string)$row[0]);
+            }
+
+            if (empty($customerName)) {
+                $skipped++;
                 continue;
             }
 
-            // Map columns: Customer Name, Equipment, Model, Serial No, Department, Service Type, PO No, Next PPM Date
-            $custName = trim($row[1] ?? $row[0] ?? '');
-            if (empty($custName)) {
-                continue;
+            // Resolve Branch
+            $branchId = $fallbackBranchId;
+            if ($colBranch !== false && !empty($row[$colBranch])) {
+                $bNameKey = strtolower(trim((string)$row[$colBranch]));
+                if (isset($branchesCache[$bNameKey])) {
+                    $branchId = $branchesCache[$bNameKey]->id;
+                }
+            }
+
+            // Department & Contacts
+            $department = $colDept !== false && isset($row[$colDept]) ? trim((string)$row[$colDept]) : null;
+            $contactPerson = $colContactPerson !== false && isset($row[$colContactPerson]) ? trim((string)$row[$colContactPerson]) : null;
+            $contactNo = $colContactNo !== false && isset($row[$colContactNo]) ? trim((string)$row[$colContactNo]) : null;
+
+            // Link or auto-register Customer
+            $customerId = null;
+            $custKey = strtolower($customerName);
+            if (isset($customersCache[$custKey])) {
+                $customerId = $customersCache[$custKey]->id;
+            } else {
+                try {
+                    $newCust = Customer::create([
+                        'branch_id' => $branchId,
+                        'name' => $customerName,
+                        'department' => $department,
+                        'contact_person' => $contactPerson,
+                        'contact_no' => $contactNo,
+                    ]);
+                    $customerId = $newCust->id;
+                    $customersCache[$custKey] = $newCust;
+                } catch (\Exception $e) {
+                    // Ignore duplicate race conditions
+                }
+            }
+
+            // Product & Equipment
+            $productDesc = $colProduct !== false && isset($row[$colProduct]) ? trim((string)$row[$colProduct]) : null;
+            $equipmentName = $colEquipment !== false && isset($row[$colEquipment]) ? trim((string)$row[$colEquipment]) : null;
+            $modelMake = $colModel !== false && isset($row[$colModel]) ? trim((string)$row[$colModel]) : null;
+            $serialNo = $colSerial !== false && isset($row[$colSerial]) ? trim((string)$row[$colSerial]) : null;
+
+            if (empty($equipmentName) && !empty($productDesc)) {
+                $equipmentName = $productDesc;
+            }
+            if (empty($productDesc) && !empty($equipmentName)) {
+                $productDesc = $equipmentName;
+            }
+
+            // Link or auto-register Product
+            $productId = null;
+            if (!empty($productDesc)) {
+                $prodKey = strtolower($productDesc);
+                if (isset($productsCache[$prodKey])) {
+                    $productId = $productsCache[$prodKey]->id;
+                } else {
+                    try {
+                        $newProd = Product::create([
+                            'name' => $productDesc,
+                            'equipment_name' => $equipmentName ?: $productDesc,
+                            'model_make' => $modelMake,
+                            'default_ppm_days' => 90,
+                        ]);
+                        $productId = $newProd->id;
+                        $productsCache[$prodKey] = $newProd;
+                    } catch (\Exception $e) {
+                        // Ignore duplicate
+                    }
+                }
+            }
+
+            // Dates & execution fields
+            $entryDate = $colEntryDate !== false && isset($row[$colEntryDate]) ? $parseDate($row[$colEntryDate]) : date('Y-m-d');
+            $installDate = $colInstallDate !== false && isset($row[$colInstallDate]) ? $parseDate($row[$colInstallDate]) : date('Y-m-d');
+            $nextPpmDate = $colNextPpmDate !== false && isset($row[$colNextPpmDate]) ? $parseDate($row[$colNextPpmDate]) : null;
+
+            // If next PPM date not specified, compute from installation date + 90 days
+            if (!$nextPpmDate && $installDate) {
+                $nextPpmDate = Carbon::parse($installDate)->addDays(90)->toDateString();
             }
 
             PpmRecord::create([
-                'branch_id' => $defaultBranchId,
-                'customer_name' => $custName,
-                'equipment_name' => $row[2] ?? $row[1] ?? 'Medical Equipment',
-                'model_make' => $row[3] ?? null,
-                'serial_no' => $row[4] ?? null,
-                'department' => $row[5] ?? 'General',
-                'service_type' => $row[6] ?? 'Routine PPM',
-                'purchase_order_no' => $row[7] ?? null,
-                'entry_date' => now(),
-                'status' => 'Pending',
+                'branch_id' => $branchId,
+                'customer_id' => $customerId,
+                'product_id' => $productId,
+                'customer_name' => $customerName,
+                'product_description' => $productDesc,
+                'equipment_name' => $equipmentName ?: 'Medical Equipment',
+                'model_make' => $modelMake,
+                'serial_no' => $serialNo,
+                'department' => $department ?: 'Biomedical',
+                'contact_person' => $contactPerson,
+                'contact_no' => $contactNo,
+                'purchase_order_no' => $colPO !== false && isset($row[$colPO]) ? trim((string)$row[$colPO]) : null,
+                'supply_against' => $colSupply !== false && isset($row[$colSupply]) ? trim((string)$row[$colSupply]) : null,
+                'entry_date' => $entryDate ?: date('Y-m-d'),
+                'installation_date' => $installDate ?: date('Y-m-d'),
+                'performed_by' => $colPerformedBy !== false && isset($row[$colPerformedBy]) ? trim((string)$row[$colPerformedBy]) : 'Engineer',
+                'service_type' => $colServiceType !== false && isset($row[$colServiceType]) ? trim((string)$row[$colServiceType]) : 'New Installation',
+                'record_type' => $colRecordType !== false && isset($row[$colRecordType]) ? trim((string)$row[$colRecordType]) : 'Installation / PPM',
+                'next_ppm_date' => $nextPpmDate,
+                'status' => $colStatus !== false && isset($row[$colStatus]) ? trim((string)$row[$colStatus]) : 'Completed',
+                'scope_of_work' => $colScope !== false && isset($row[$colScope]) ? trim((string)$row[$colScope]) : null,
+                'remarks' => $colRemarks !== false && isset($row[$colRemarks]) ? trim((string)$row[$colRemarks]) : 'Imported via Excel Batch Import',
             ]);
+
             $imported++;
         }
 
-        fclose($handle);
+        $message = "Successfully imported {$imported} PPM record(s) from Excel file.";
+        if ($skipped > 0) {
+            $message .= " ({$skipped} invalid or empty rows skipped).";
+        }
 
-        return redirect()->route('ppm.index')
-            ->with('success', "Successfully imported {$imported} PPM record(s) from CSV.");
+        return redirect()->route('ppm.index')->with('success', $message);
     }
 
     /**
