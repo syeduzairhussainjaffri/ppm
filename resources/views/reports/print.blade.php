@@ -10,9 +10,22 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @media print {
+            @page {
+                size: A4 portrait;
+                margin: 2.5in 0.5in 1.5in 0.5in !important;
+            }
+
+            html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
             .no-print { display: none !important; }
-            body { background: white !important; color: black !important; padding: 0 !important; }
-            .print-page { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; }
+            .print-page { border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
         }

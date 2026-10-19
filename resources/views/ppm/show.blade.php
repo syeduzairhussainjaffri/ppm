@@ -29,7 +29,7 @@
         $performedByLabel = 'Repair Performed By:';
         $engineerRoleTitle = 'Biomedical Service Engineer';
     } elseif ($isInstallation && !$isPpm) {
-        $reportTitle = 'EQUIPMENT INSTALLATION & COMMISSIONING REPORT';
+        $reportTitle = 'EQUIPMENT INSTALLATION REPORT';
         $reportSubTitle = 'Medical Equipment Site Delivery, Installation & Handover Field Sheet';
         $headerBadge = 'NEW INSTALLATION';
         $badgeColorClass = 'bg-blue-50 text-blue-700 border-blue-300';
@@ -37,10 +37,10 @@
         $themeIcon = 'fa-solid fa-truck-ramp-box';
         $dateLabel = 'Date of Installation:';
         $performedByLabel = 'Installation Performed By:';
-        $engineerRoleTitle = 'Installation & Commissioning Engineer';
+        $engineerRoleTitle = 'Installation Engineer';
     } elseif ($isInstallation && $isPpm) {
         $reportTitle = 'INSTALLATION & PREVENTIVE MAINTENANCE REPORT';
-        $reportSubTitle = 'Medical Equipment Site Installation, Commissioning & PPM Maintenance Sheet';
+        $reportSubTitle = 'Medical Equipment Site Installation & PPM Maintenance Sheet';
         $headerBadge = 'INSTALLATION & PPM';
         $badgeColorClass = 'bg-indigo-50 text-indigo-700 border-indigo-300';
         $themeGradient = 'from-indigo-600 to-teal-700';
@@ -79,11 +79,16 @@
 
 @section('content')
 <style>
-    /* Complete High-Contrast Black & White A4 Full-Page Setup */
+    /* ================================================================
+       PRINT LAYOUT: Letterhead-Compatible A4 Page
+       Header Space: 2.5 inch (top margin for pre-printed letterhead)
+       Footer Space: 1.5 inch (bottom margin for pre-printed letterhead)
+       Left/Right:   0.5 inch
+       ================================================================ */
     @media print {
         @page {
             size: A4 portrait;
-            margin: 6mm 7mm !important;
+            margin: 2.5in 0.5in 1.5in 0.5in !important;
         }
 
         html, body {
@@ -92,13 +97,11 @@
             font-size: 10px !important;
             margin: 0 !important;
             padding: 0 !important;
-            height: 100% !important;
-            min-height: 100% !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
 
-        .no-print, #sidebar, #mobile-header, header, footer, #ppm-toast-container, #ppmNotificationPanel {
+        .no-print, #sidebar, #mobile-header, header, footer, #ppm-toast-container, #ppmNotificationPanel, #sidebar-overlay {
             display: none !important;
         }
 
@@ -107,83 +110,51 @@
             padding: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
-            height: 100% !important;
-            min-height: 100% !important;
         }
 
-        /* Full Page A4 Card Container */
+        /* Print Card: No border/shadow, fills content area between margins */
         .print-card {
             box-shadow: none !important;
-            border: 2px solid #000000 !important;
+            border: none !important;
             border-radius: 0 !important;
-            padding: 6mm 7mm !important;
+            padding: 0 !important;
             margin: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
             box-sizing: border-box !important;
-            min-height: 278mm !important;
-            height: 278mm !important;
-            max-height: 278mm !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: space-between !important;
+            justify-content: flex-start !important;
             page-break-inside: avoid !important;
-            page-break-after: avoid !important;
-            page-break-before: avoid !important;
             break-inside: avoid !important;
         }
 
-        /* Strict Monochrome: Clear all color backgrounds and force true black */
-        .print-card,
-        .print-card *:not(.header-brand-icon):not(.header-brand-icon *) {
-            background-color: transparent !important;
-            background-image: none !important;
-            color: #000000 !important;
-            border-color: #000000 !important;
-            box-shadow: none !important;
-            text-shadow: none !important;
+        /* Hide all screen-only header content — letterhead provides these */
+        .print-card .header-section {
+            display: none !important;
         }
 
-        /* Solid black icon box for official branding */
-        .print-card .header-brand-icon {
-            background-color: #000000 !important;
-            color: #ffffff !important;
-            border: 1px solid #000000 !important;
-        }
-        .print-card .header-brand-icon i {
-            color: #ffffff !important;
-        }
-
-        /* High-Contrast Badges & Boxes in Print */
-        .print-card .badge-box,
-        .print-card .status-badge,
-        .print-card .days-badge,
-        .print-card .ref-box {
-            background-color: #ffffff !important;
-            border: 1.2px solid #000000 !important;
-            color: #000000 !important;
-            font-weight: 800 !important;
-        }
-
-        .header-section {
+        /* Show only the print-only reference line */
+        .print-ref-line {
+            display: flex !important;
+            flex-direction: column !important;
             border-bottom: 2px solid #000000 !important;
-            padding-bottom: 7px !important;
-            margin-bottom: 6px !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 5px !important;
         }
 
-        /* Table Container & Table Expansion to Fill A4 Page */
+        /* Table Container stretches to fill page */
         .voucher-table-wrapper {
             flex: 1 1 auto !important;
             display: flex !important;
             flex-direction: column !important;
-            margin: 2px 0 !important;
+            margin: 0 !important;
         }
 
         .voucher-table {
             border: 1.5px solid #000000 !important;
             border-collapse: collapse !important;
             width: 100% !important;
-            height: 100% !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
         }
@@ -199,10 +170,10 @@
             line-height: 1.35 !important;
             border: 1px solid #000000 !important;
             color: #000000 !important;
+            background-color: transparent !important;
         }
 
         .voucher-table th {
-            background-color: #f1f5f9 !important;
             font-weight: 800 !important;
             font-size: 12px !important;
         }
@@ -216,6 +187,23 @@
             font-weight: 900 !important;
         }
 
+        .voucher-table thead tr {
+            background-color: #f1f5f9 !important;
+        }
+
+        .voucher-table thead th {
+            background-color: #f1f5f9 !important;
+        }
+
+        /* Badges in print */
+        .print-card .days-badge {
+            background-color: #ffffff !important;
+            border: 1.2px solid #000000 !important;
+            color: #000000 !important;
+            font-weight: 800 !important;
+        }
+
+        /* Sign Section */
         .sign-container {
             border-top: 2px solid #000000 !important;
             margin-top: 6px !important;
@@ -228,17 +216,20 @@
             border: 1.2px solid #000000 !important;
             padding: 5px 10px !important;
             background: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        .sign-box * {
+            color: #000000 !important;
         }
 
         .sign-area {
-            height: 48px !important;
+            height: 80px !important;
         }
 
+        /* Hide footer note entirely — letterhead footer handles it */
         .footer-note {
-            margin-top: 4px !important;
-            padding-top: 3px !important;
-            border-top: 1px solid #000000 !important;
-            font-size: 8.5px !important;
+            display: none !important;
         }
     }
 </style>
@@ -286,10 +277,19 @@
         </div>
     </div>
 
-    <!-- Official Service Report Card (Full A4 Page in Print, Beautiful & Colorful on Screen) -->
+    <!-- Official Service Report Card -->
     <div class="bg-white border border-slate-200 rounded-2xl shadow-md p-5 sm:p-7 text-slate-900 print-card">
         
-        <!-- Header Section -->
+        <!-- Print-Only: PPM Report Title + Reference Line (visible ONLY in print) -->
+        <div class="print-ref-line hidden flex-col text-slate-900 pb-1.5 mb-2 border-b-2 border-slate-900">
+            <div class="text-center mb-1" style="font-size: 20px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;">PLANNED PREVENTIVE MAINTENANCE (PPM) REPORT</div>
+            <div class="flex items-center justify-between text-xs font-bold">
+                <span class="font-mono text-sm font-black">#PPM-{{ str_pad($record->id, 5, '0', STR_PAD_LEFT) }}</span>
+                <span class="font-semibold">Date: {{ optional($record->entry_date)->format('d-M-Y') ?: now()->format('d-M-Y') }}</span>
+            </div>
+        </div>
+
+        <!-- Screen-Only Header Section (hidden on print — letterhead provides all branding) -->
         <div class="header-section border-b-2 border-slate-200 pb-3 mb-3 flex flex-row items-start justify-between gap-3">
             
             <div class="space-y-1 flex-1">
@@ -345,14 +345,14 @@
 
         </div>
 
-        <!-- 15-Item Checklist Table Wrapper (Stretches gracefully to fill A4 in print) -->
+        <!-- Checklist Table Wrapper -->
         <div class="voucher-table-wrapper">
             <table class="w-full border-collapse border border-slate-300 text-sm voucher-table">
                 <thead>
                     <tr class="bg-slate-100 text-slate-900 text-xs uppercase tracking-wider font-extrabold border-b border-slate-300">
                         <th class="w-12 text-center py-2 px-2 border-r border-slate-300">#</th>
-                        <th class="w-60 sm:w-72 text-left py-2 px-3 border-r border-slate-300">Checklist &amp; Equipment Parameter</th>
-                        <th class="text-left py-2 px-3">Specification / Recorded Value / Verification Details</th>
+                        <th class="w-60 sm:w-72 text-left py-2 px-3 border-r border-slate-300">Checklist</th>
+                        <th class="text-left py-2 px-3">Description</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -524,14 +524,15 @@
             </table>
         </div>
 
-        <!-- Sign-off & Verification Section (Anchored cleanly at bottom of page) -->
+
+
+        <!-- Sign-off & Verification Section -->
         <div class="sign-container mt-3 pt-2.5 border-t-2 border-slate-200 grid grid-cols-2 gap-4 text-center text-xs text-slate-700">
             
             <!-- Left: Engineer Signature -->
             <div class="sign-box border border-slate-200 rounded-xl p-2.5 bg-slate-50/60 shadow-2xs">
-                <div class="sign-area h-12 flex flex-col justify-end items-center pb-1">
+                <div class="sign-area h-24 flex flex-col justify-end items-center pb-1">
                     <p class="font-mono text-xs font-bold text-slate-900">{{ $record->performed_by ?: 'Engineer Signature' }}</p>
-                    <p class="text-[9px] text-slate-500 font-mono">{{ optional($record->entry_date)->format('d-M-Y') ?: date('d-M-Y') }}</p>
                 </div>
                 <div class="border-t border-slate-300 pt-1">
                     <p class="font-black uppercase tracking-wider text-slate-800 text-[10px]">{{ $engineerRoleTitle }}</p>
@@ -539,20 +540,19 @@
                 </div>
             </div>
 
-            <!-- Right: Hospital Verification -->
+            <!-- Right: Verification -->
             <div class="sign-box border border-slate-200 rounded-xl p-2.5 bg-slate-50/60 shadow-2xs">
-                <div class="sign-area h-12 flex flex-col justify-end items-center pb-1">
-                    <p class="text-slate-400 italic text-[9px]">Official Stamp &amp; Signature</p>
+                <div class="sign-area h-24 flex flex-col justify-end items-center pb-1">
                 </div>
                 <div class="border-t border-slate-300 pt-1">
-                    <p class="font-black uppercase tracking-wider text-slate-800 text-[10px]">Hospital / Biomedical HOD Verification</p>
+                    <p class="font-black uppercase tracking-wider text-slate-800 text-[10px]">Verification</p>
                     <p class="text-[9px] text-slate-500">Authorized Signature &amp; Official Stamp</p>
                 </div>
             </div>
 
         </div>
 
-        <!-- Footer Verification Disclaimer -->
+        <!-- Footer Note (screen only — hidden in print) -->
         <div class="footer-note mt-2 pt-1 border-t border-slate-200 text-center text-[8.5px] text-slate-500 font-medium flex items-center justify-between">
             <span>BioMed CRM &bull; Planned Preventive Maintenance Operations</span>
             <span>Ref: #PPM-{{ str_pad($record->id, 5, '0', STR_PAD_LEFT) }} &bull; Generated: {{ now()->format('d-M-Y H:i') }}</span>

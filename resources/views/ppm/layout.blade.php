@@ -20,6 +20,20 @@
         }
 
         @media print {
+            @page {
+                size: A4 portrait;
+                margin: 2.5in 0.5in 1.5in 0.5in !important;
+            }
+
+            html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
             .no-print, #sidebar, #mobile-header, #ppm-toast-container, #ppmNotificationPanel {
                 display: none !important;
             }
@@ -27,10 +41,6 @@
                 margin-left: 0 !important;
                 padding: 0 !important;
                 width: 100% !important;
-            }
-            body {
-                background: white !important;
-                color: black !important;
             }
             .print-card {
                 box-shadow: none !important;
